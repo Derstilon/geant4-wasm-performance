@@ -2,10 +2,11 @@ cd ./example/B1
 MODE=${1:-"both"}
 NATIVE=false
 WASM=false
-if [ $1 = "native" || $1 = "both" ]; then
+echo "Build mode: $MODE"
+if [ "$MODE" = "native" ] || [ "$MODE" = "both" ]; then
     NATIVE=true
 fi
-if [ $1 = "wasm" || $1 = "both" ]; then
+if [ "$MODE" = "wasm" ] || [ "$MODE" = "both" ]; then
     WASM=true
 fi
 
@@ -53,3 +54,4 @@ if [ $WASM = true ]; then
 fi
 
 cd ../../
+
