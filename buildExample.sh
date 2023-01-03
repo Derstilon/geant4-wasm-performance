@@ -1,31 +1,56 @@
 cd ./example/B1
-
-rm -rf ./build/native/*
-mkdir -p ./build/native 
-
-cd ./build/native
-
-source ../../../../geant4/native/geant4.10.04.p03/install/bin/geant4.sh 
-cmake -DGeant4_DIR=../../../../geant4/native/geant4.10.04.p03/install/lib/Geant4-10.4.3 ../../
-make -j
-
-cd ../../
+MODE=${1:-"both"}
+NATIVE=false
+WASM=false
+if [ $1 = "native" || $1 = "both" ]; then
+    NATIVE=true
+fi
+if [ $1 = "wasm" || $1 = "both" ]; then
+    WASM=true
+fi
 
 
-rm -rf ./build/wasm/*
-mkdir -p ./build/wasm 
+function build_native {
 
-cd ./build/wasm
+    # delete old compilaton
+    rm -rf ./build/native/*
+    mkdir -p ./build/native 
+    
+    cd ./build/native
 
-Geant4_DIR=../../../../geant4/wasm/geant4.10.04.p03/install/lib/Geant4-10.4.3
-Geant4_DIR_ABS="$(dirname $(readlink -e $Geant4_DIR))/$(basename $Geant4_DIR)"
+    source ../../../../geant4/native/geant4.10.04.p03/install/bin/geant4.sh 
+    cmake -DGeant4_DIR=../../../../geant4/native/geant4.10.04.p03/install/lib/Geant4-10.4.3 ../../
+    make -j
 
-source ../../../../emsdk/emsdk_env.sh
-source ../../../../geant4/wasm/geant4.10.04.p03/install/bin/geant4.sh
-emcmake cmake -DGeant4_DIR=$Geant4_DIR_ABS ../../
-emmake make -j
+    cd ../../
+}
 
-cd ../../
+function build_wasm {
+
+    # delete old compilaton
+    rm -rf ./build/wasm/*
+    mkdir -p ./build/wasm 
+
+    cd ./build/wasm
+
+    Geant4_DIR=../../../../geant4/wasm/geant4.10.04.p03/install/lib/Geant4-10.4.3
+    Geant4_DIR_ABS="$(dirname $(readlink -e $Geant4_DIR))/$(basename $Geant4_DIR)"
+
+    source ../../../../emsdk/emsdk_env.sh
+    source ../../../../geant4/wasm/geant4.10.04.p03/install/bin/geant4.sh
+    emcmake cmake -DGeant4_DIR=$Geant4_DIR_ABS ../../
+    emmake make -j
+
+    cd ../../
+}
+
+if [ $NATIVE = true ]; then
+    build_native
+fi
+
+if [ $WASM = true ]; then
+    build_wasm
+fi
 
 cd ../../
 
