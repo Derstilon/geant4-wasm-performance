@@ -53,4 +53,3 @@ if [ $WASM = true ]; then
 fi
 
 cd ../../
-
