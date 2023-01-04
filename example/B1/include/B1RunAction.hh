@@ -34,6 +34,7 @@
 #include "G4UserRunAction.hh"
 #include "G4Accumulable.hh"
 #include "globals.hh"
+#include "MessageQueue.hh"
 
 class G4Run;
 
@@ -46,6 +47,10 @@ class B1RunAction : public G4UserRunAction
     // virtual G4Run* GenerateRun();
     virtual void BeginOfRunAction(const G4Run*);
     virtual void   EndOfRunAction(const G4Run*);
+    virtual MessageQueue* GetMessageQueue() const;
+  
+  private:
+    MessageQueue* fMessageQueue;
 
 };
 

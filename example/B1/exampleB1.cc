@@ -2,6 +2,7 @@
 #include "B1ActionInitialization.hh"
 
 #include "G4RunManager.hh"
+#include "B1RunAction.hh"
 #include "G4ScoringManager.hh"
 
 
@@ -19,6 +20,8 @@
 #endif
 
 #include <chrono>
+#include <vector>
+#include <string>
 
 
 G4RunManager *runManager;
@@ -108,6 +111,23 @@ void run(std::string name){
 
 }
 
+std::vector<std::string> getMessages(){
+  //get message queue
+  auto messageQueue = dynamic_cast<const B1RunAction *>(
+      runManager->GetUserRunAction()
+  )->GetMessageQueue();
+  auto messages = messageQueue->Dump();
+  #ifdef __EMSCRIPTEN__
+  for (auto message : messages)
+  {
+    EM_ASM_({
+      console.log(UTF8ToString($0));
+    }, message.c_str());
+  }
+  #endif
+  return messages;
+}
+
 void clear(){
   // Job termination
   // Free the store: user actions, physics_list and detector_description are
@@ -123,6 +143,11 @@ int main(int argc, char** argv)
 {
   init();
   run("exampleB1.in");
+  auto messages = getMessages();
+  for (auto message : messages)
+  {
+    G4cout << message << G4endl;
+  }
   clear();
 }
 #endif
@@ -133,6 +158,7 @@ EMSCRIPTEN_BINDINGS(my_module)
   emscripten::function("init", &init);
   emscripten::function("run", &run);
   emscripten::function("clear", &clear);
+  emscripten::function("getMessages", &getMessages);
 }
 #endif
 

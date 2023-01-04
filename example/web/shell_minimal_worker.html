@@ -1,104 +1,81 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en-us">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>Geant4 in WebAssembly</title>
+    </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>Geant4 in WebAssembly</title>
-</head>
+    <body>
+        <textarea id="emscriptenInput" rows="30" style="width: 800px">
+        </textarea>
+        <br />
+        <button id="run">Run simulation</button>
 
-<body>
+        <script>
+            const simulationConf = `
+    /process/em/verbose 0
+    /run/verbose 0
+    /control/verbose 0
+    
+    /score/create/boxMesh boxMesh
+    /score/mesh/boxSize 50. 50. 50. mm
+    /score/mesh/nBin 1 1 1
+    /score/quantity/energyDeposit eDep
+    
+    /score/close
+    
+    /run/initialize
+    
+    /process/em/verbose 0
+    /run/verbose 0
+    /control/verbose 0
+    
+    
+    /gps/particle proton
+    /gps/energy 60 MeV
+    /gps/direction 0. 0. 1.
+    /gps/position 0. 0. -2 cm
+    
+    /run/beamOn 100    
 
-  <textarea id="emscriptenInput" rows="30" style="width: 800px;">
-  </textarea>
-  <br>
-  <button id="run">Run simulation</button>
+`;
 
-  <script>
-    const simulationConf = `
-/run/initialize
-#
-# define scoring mesh
-#
-/score/create/boxMesh boxMesh_1
-/score/mesh/boxSize 10. 10. 10. cm
-/score/mesh/nBin 1 1 10
-#
-#
-# define scorers and filters
-#
-/score/quantity/energyDeposit eDep
-/score/quantity/nOfStep nOfStepGamma
-/score/filter/particle gammaFilter gamma
-/score/quantity/nOfStep nOfStepEMinus
-/score/filter/particle eMinusFilter e-
-/score/quantity/nOfStep nOfStepEPlus
-/score/filter/particle ePlusFilter e+
-#
-/score/close
-#
+            const runButton = document.querySelector("#run");
+            const emscriptenInput = document.querySelector("#emscriptenInput");
+            let index = 0;
+            emscriptenInput.value = simulationConf;
 
-/control/verbose 0
-/run/verbose 0
+            const handleClick = () =>
+                new Promise((resolve) => {
+                    index++;
+                    console.log(`Run simulation ${index}`);
+                    console.log(`Waiting for runtime to be initialized...`);
+                    const worker = new Worker("worker.js");
 
-#
-# gamma 6 MeV to the direction (0.,0.,1.)
-# 10000 events
-#
-/gun/particle gamma
-/gun/energy 6 MeV
-#
-# /run/printProgress 1000
-/run/beamOn 10000
+                    worker.onmessage = function (e) {
+                        switch (e.data.type) {
+                            case "event":
+                                if (e.data.data === "onRuntimeInitialized")
+                                    worker.postMessage(simulationConf);
+                                break;
+                            case "result":
+                                console.log(`Data from worker:${e.data.data}`);
+                                resolve(e.data.data);
+                                break;
+                            case "print":
+                            // console.log(`Worker${index}:${e.data.data}`);
+                            default:
+                            // console.log(`Worker ${index}: ${e.data.type} ${e.data.data}`);
+                        }
+                    };
+                });
 
-# Dump scorers to a file
-#
-/score/dumpQuantityToFile boxMesh_1 nOfStepGamma nOfStepGamma.txt
-/score/dumpQuantityToFile boxMesh_1 eDep eDep.txt
-#
-#
+            runButton.onclick = () => {
+                handleClick();
+            };
 
-`
-
-
-    const runButton = document.querySelector('#run');
-    const emscriptenInput = document.querySelector('#emscriptenInput');
-    let index = 0;
-    emscriptenInput.value = simulationConf;
-
-    const handleClick = () => new Promise((resolve) => {
-      index++;
-      console.log(`Run simulation ${index}`);
-      console.log(`Waiting for runtime to be initialized...`);
-      const worker = new Worker("worker.js");
-
-
-      worker.onmessage = function (e) {
-        switch (e.data.type) {
-          case 'event':
-            if (e.data.data === "onRuntimeInitialized")
-              worker.postMessage(simulationConf)
-            break;
-          case 'result':
-            console.log(`Data from worker:${e.data.data}`)
-            resolve(e.data.data)
-            break;
-          case 'print':
-          // console.log(`Worker${index}:${e.data.data}`);
-          default:
-          // console.log(`Worker ${index}: ${e.data.type} ${e.data.data}`);
-        }
-      }
-    })
-
-    runButton.onclick = () => {
-      handleClick();
-    }
-
-    window.runSimulation = handleClick;
-  </script>
-
-
-</body>
-
+            window.runSimulation = handleClick;
+        </script>
+    </body>
 </html>
