@@ -36,6 +36,9 @@
 #include "G4Event.hh"
 #include "G4RunManager.hh"
 #include "G4LogicalVolume.hh"
+#include "MessageQueue.hh"
+
+#include <string>
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -53,8 +56,23 @@ B1SteppingAction::~B1SteppingAction()
 
 void B1SteppingAction::UserSteppingAction(const G4Step* step)
 { 
-    // print pre step point
-    G4cout << "PreStepPoint: (" << step->GetTrack()->GetDefinition()->GetParticleName() << ") : "  << step->GetPreStepPoint()->GetPosition() << " [mm]" << G4endl;
+    // get message queue from event action
+    MessageQueue* messageQueue = fEventAction->GetMessageQueue();
+    
+    // get event id
+    auto eventId = std::to_string(G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID());
+    // get particle name
+    auto particleName = step->GetTrack()->GetDefinition()->GetParticleName();
+    // get particle id
+    auto particleId = std::to_string(step->GetTrack()->GetTrackID());
+    // get pre step point
+    auto preStepPoint = step->GetPreStepPoint()->GetPosition();
+    // get x, y, z coordinates
+    auto coords = std::to_string(preStepPoint.x()) + " : " + std::to_string(preStepPoint.y()) + " : " + std::to_string(preStepPoint.z());
+    // create message
+    auto message = eventId + " , " + particleName + " , " + particleId + " , " + coords;
+    // push message to message queue
+    messageQueue->Push(message);
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

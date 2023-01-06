@@ -21,4 +21,4 @@
 /gps/direction 0. 0. 1.
 /gps/position 0. 0. -2 cm
 
-/run/beamOn 100
+/run/beamOn 1
