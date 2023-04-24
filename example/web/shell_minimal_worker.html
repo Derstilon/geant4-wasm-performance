@@ -11,40 +11,127 @@
         </textarea>
         <br />
         <button id="run">Run simulation</button>
-
+        <br/>
+        <canvas id="canvas" width="800" height="300"></canvas>
         <script>
             const simulationConf = `
     /process/em/verbose 0
     /run/verbose 0
     /control/verbose 0
-    
+
     /score/create/boxMesh boxMesh
     /score/mesh/boxSize 50. 50. 50. mm
     /score/mesh/nBin 1 1 1
     /score/quantity/energyDeposit eDep
-    
+
     /score/close
-    
+
     /run/initialize
-    
+
     /process/em/verbose 0
     /run/verbose 0
     /control/verbose 0
-    
-    
+
+
     /gps/particle proton
     /gps/energy 60 MeV
     /gps/direction 0. 0. 1.
     /gps/position 0. 0. -2 cm
-    
-    /run/beamOn 100    
 
+    /run/beamOn 10  
 `;
-
             const runButton = document.querySelector("#run");
             const emscriptenInput = document.querySelector("#emscriptenInput");
             let index = 0;
             emscriptenInput.value = simulationConf;
+            function createShaderProgram(gl, vertexShaderSource, fragmentShaderSource) {
+                // Create the vertex shader
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertexShader, vertexShaderSource);
+                gl.compileShader(vertexShader);
+              
+                // Create the fragment shader
+                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(fragmentShader, fragmentShaderSource);
+                gl.compileShader(fragmentShader);
+              
+                // Create the shader program
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+              
+                return program;
+            }
+            function mapPointsToLines(points) {
+                const lines = [];
+                for (let i = 0; i < points.length; i += 3) {
+                    lines.push(points[i], points[i + 1], points[i + 2], points[i + 3], points[i + 4], points[i + 5]);
+                }
+                return lines;
+            }
+            function drawA(program, gl, type, vertices) {
+                console.log(vertices);
+                var n = initBuffers(program, gl,  vertices);
+                if (n < 0) {
+                  console.log('Failed to set the positions of the vertices');
+                  return;
+                }
+                gl.drawArrays(type, 0, n);
+            }
+            function initBuffers(program, gl, vertices) {
+                var n = vertices.length / 6;
+            
+                var vertexBuffer = gl.createBuffer();
+                if (!vertexBuffer) {
+                  console.log('Failed to create the buffer object');
+                  return -1;
+                }
+                const modelMatrix = new Float32Array([
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                ]);
+                const viewMatrix = new Float32Array([
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                ]);
+                const projectionMatrix = new Float32Array([
+                    .0001, 0, 0, 0,
+                    0, .0001, 0, 0,
+                    0, 0, .0001, 0,
+                    0, 0, 0, .0001
+                ]);
+            
+                gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+            
+                const positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
+                const modelMatrixAttribLocation = gl.getUniformLocation(program, 'modelMatrix');
+                const viewMatrixAttribLocation = gl.getUniformLocation(program, 'viewMatrix');
+                const projectionMatrixAttribLocation = gl.getUniformLocation(program, 'projectionMatrix');
+                if (positionAttribLocation < 0) {
+                  console.log('Failed to get the storage location of aPosition');
+                  return -1;
+                }
+                gl.uniformMatrix4fv(modelMatrixAttribLocation, gl.FALSE, modelMatrix);
+                gl.uniformMatrix4fv(viewMatrixAttribLocation, gl.FALSE, viewMatrix);
+                gl.uniformMatrix4fv(projectionMatrixAttribLocation, gl.FALSE, projectionMatrix);    
+
+                gl.vertexAttribPointer(
+                    positionAttribLocation,  // Attribute location
+                    3,  // Number of elements per attribute
+                    gl.FLOAT,  // Type of elements
+                    gl.FALSE,  // Normalized
+                    3 * Float32Array.BYTES_PER_ELEMENT,  // Size of an individual vertex
+                    0  // Offset from the beginning of a single vertex to this attribute
+                );
+                gl.enableVertexAttribArray(positionAttribLocation);
+                return n;
+            }
 
             const handleClick = () =>
                 new Promise((resolve) => {
@@ -63,10 +150,11 @@
                                 console.log(`Data from worker:${e.data.data}`);
                                 resolve(e.data.data);
                                 break;
-                            case "print":
-                            // console.log(`Worker${index}:${e.data.data}`);
+                            case "render":
+                                for(let x of e.data.data)
+                                    console.log(x);
                             default:
-                            // console.log(`Worker ${index}: ${e.data.type} ${e.data.data}`);
+                                console.log(`Worker ${index}: ${e.data.type} ${e.data.data}`);
                         }
                     };
                 });

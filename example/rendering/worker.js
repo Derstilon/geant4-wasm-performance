@@ -78,7 +78,8 @@ const writeFile = (data) => {
     var messages = Module.getMessages();
     // Module.getMessages(messages);
     console.log(messages.size());
-    let vertices = [];
+
+    let vertices = []
     for (let i = 0; i < messages.size(); i++) {
         const message = messages.get(i);
         let data = message.split(",");
@@ -90,7 +91,6 @@ const writeFile = (data) => {
             y: Number.parseFloat(position[1]) / 200,
             z: Number.parseFloat(position[2]) / 200,
         });
-        console.log(`Event: ${data[0]}, Particle: ${data[1]}, Track: ${data[2]}, Position: ${position}`);
     }
     postMessage({ type: "render", data: vertices });
 

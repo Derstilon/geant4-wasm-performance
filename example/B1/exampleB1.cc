@@ -117,15 +117,12 @@ std::vector<std::string> getMessages(){
       runManager->GetUserRunAction()
   )->GetMessageQueue();
   auto messages = messageQueue->Dump();
-  #ifdef __EMSCRIPTEN__
-  for (auto message : messages)
+  std::vector<std::string> message_vector(messages.size());
+  for (int i = 0; i < messages.size(); i++)
   {
-    EM_ASM_({
-      console.log(UTF8ToString($0));
-    }, message.c_str());
+    message_vector[i] = messages[i];
   }
-  #endif
-  return messages;
+  return message_vector;
 }
 
 void clear(){
@@ -159,6 +156,7 @@ EMSCRIPTEN_BINDINGS(my_module)
   emscripten::function("run", &run);
   emscripten::function("clear", &clear);
   emscripten::function("getMessages", &getMessages);
+  emscripten::register_vector<std::string>("vector<string>");
 }
 #endif
 
