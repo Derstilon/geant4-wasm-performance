@@ -45,14 +45,14 @@ if(EMSCRIPTEN)
   set_target_properties(exampleB1 PROPERTIES
     LINK_FLAGS " -sFS_DEBUG -g3 -s TOTAL_MEMORY=270MB -s WASM=1 \
     --use-preload-cache \
-    --pre-js ../../setup_env.js \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/G4ENSDFSTATE2.2@/data/G4ENSDFSTATE2.2 \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/PhotonEvaporation5.2@/data/PhotonEvaporation5.2 \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/G4EMLOW7.3/brem_SB@/data/G4EMLOW7.3/brem_SB \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/G4EMLOW7.3/livermore/phot_epics2014@/data/G4EMLOW7.3/livermore/phot_epics2014 \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/G4EMLOW7.3/livermore/rayl@/data/G4EMLOW7.3/livermore/rayl \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/G4SAIDDATA1.1@/data/G4SAIDDATA1.1 \
-    --preload-file ../../../../geant4/wasm/geant4.10.04.p03/install/share/Geant4-10.4.3/data/G4NEUTRONXS1.4@/data/G4NEUTRONXS1.4 \
+    --pre-js $ENV{simulation_directory}/setup_env.js \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/G4ENSDFSTATE2.2@/data/G4ENSDFSTATE2.2 \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/PhotonEvaporation5.2@/data/PhotonEvaporation5.2 \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/G4EMLOW7.3/brem_SB@/data/G4EMLOW7.3/brem_SB \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/G4EMLOW7.3/livermore/phot_epics2014@/data/G4EMLOW7.3/livermore/phot_epics2014 \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/G4EMLOW7.3/livermore/rayl@/data/G4EMLOW7.3/livermore/rayl \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/G4SAIDDATA1.1@/data/G4SAIDDATA1.1 \
+    --preload-file $ENV{GEANT4_INSTALL_DIR}-emscripten/share/Geant4-10.4.3/data/G4NEUTRONXS1.4@/data/G4NEUTRONXS1.4 \
     -lembind "
     )
 
