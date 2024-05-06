@@ -1,34 +1,42 @@
 (function (global) {
-
     var canvas, gl, program;
     var state = {
         eye: {
-            x: 0.20,
+            x: 0.2,
             y: 0.25,
             z: 0.25,
-        }
+        },
     };
-    var data = []
+    var data = [];
     let index = 0;
 
-    glUtils.SL.init({ callback: function () { main(); } });
+    glUtils.SL.init({
+        callback: function () {
+            main();
+        },
+    });
 
     function main() {
-
-
-
         // Register Callbacks
         const runButton = document.querySelector("#run-btn");
-        window.addEventListener('resize', resizer);
-        runButton.addEventListener('click', handleClick);
+        window.addEventListener("resize", resizer);
+        runButton.addEventListener("click", handleClick);
 
         // Get canvas element and check if WebGL enabled
         canvas = document.getElementById("glcanvas");
         gl = glUtils.checkWebGL(canvas);
 
         // Initialize the shaders and program
-        var vertexShader = glUtils.getShader(gl, gl.VERTEX_SHADER, glUtils.SL.Shaders.v1.vertex),
-            fragmentShader = glUtils.getShader(gl, gl.FRAGMENT_SHADER, glUtils.SL.Shaders.v1.fragment);
+        var vertexShader = glUtils.getShader(
+                gl,
+                gl.VERTEX_SHADER,
+                glUtils.SL.Shaders.v1.vertex,
+            ),
+            fragmentShader = glUtils.getShader(
+                gl,
+                gl.FRAGMENT_SHADER,
+                glUtils.SL.Shaders.v1.fragment,
+            );
 
         program = glUtils.createProgram(gl, vertexShader, fragmentShader);
 
@@ -36,6 +44,7 @@
 
         resizer();
     }
+    let draw_data = {};
 
     function handleClick(event) {
         return new Promise((resolve) => {
@@ -51,19 +60,21 @@
                             worker.postMessage(simulationConf);
                         break;
                     case "render":
-                        let data = {}
                         e.data.data.forEach((d) => {
-                            const label = d["event"] + "_" + d["track"]
-                            if (!(label in data))
-                                data[label] = []
-                            data[label].push(d["x"], d["y"], d["z"])
+                            const label = d["event"] + "_" + d["track"];
+                            if (!(label in draw_data)) draw_data[label] = [];
+                            draw_data[label].push(d["x"], d["y"], d["z"]);
                         });
 
-                        draw(Object.values(data));
-                        console.log(`Worker ${index}: ${e.data.type} ${e.data.data.length}`);
+                        draw(Object.values(draw_data));
+                        console.log(
+                            `Worker ${index}: ${e.data.type} ${e.data.data.length}`,
+                        );
                         break;
                     default:
-                        console.log(`Worker ${index}: ${e.data.type} ${e.data.data}`);
+                        console.log(
+                            `Worker ${index}: ${e.data.type} ${e.data.data}`,
+                        );
                 }
             };
         });
@@ -73,19 +84,10 @@
     function draw(data_list) {
         if (!data_list) {
             data_list = [
-                [
-                    .5, 0, 0,
-                    - .5, 0, 0
-                ],
-                [
-                    0, .5, 0,
-                    0, - .5, 0
-                ],
-                [
-                    0, 0, .5,
-                    0, 0, - .5
-                ]
-            ]
+                [0.5, 0, 0, -0.5, 0, 0],
+                [0, 0.5, 0, 0, -0.5, 0],
+                [0, 0, 0.5, 0, 0, -0.5],
+            ];
         }
         // Specify the color for clearing <canvas>
         gl.clearColor(0, 0, 0, 1);
@@ -94,7 +96,7 @@
             // Write the positions of vertices to a vertex shader
             var n = initBuffers(data);
             if (n < 0) {
-                console.log('Failed to set the positions of the vertices');
+                console.log("Failed to set the positions of the vertices");
                 return;
             }
             var mm = mat4.create();
@@ -106,18 +108,18 @@
             // center = the focal point, where we're looking
             // up = the "vertical" up direction from the center
             // var ex=0.25,ey=0.25,ez=1;
-            mm = mat4.lookAt(mm,
+            mm = mat4.lookAt(
+                mm,
                 vec3.fromValues(state.eye.x, state.eye.y, state.eye.z),
                 vec3.fromValues(0, 0, 0),
-                vec3.fromValues(0, 1, 0)
+                vec3.fromValues(0, 1, 0),
             );
-            var uViewMatrix = gl.getUniformLocation(program, 'uViewMatrix');
+            var uViewMatrix = gl.getUniformLocation(program, "uViewMatrix");
             gl.uniformMatrix4fv(uViewMatrix, false, mm);
 
             // Draw a line
             gl.drawArrays(gl.LINE_STRIP, 0, n);
         }
-
     }
 
     function initBuffers(data) {
@@ -136,7 +138,7 @@
         // Create a buffer object
         var vertexBuffer = gl.createBuffer();
         if (!vertexBuffer) {
-            console.log('Failed to create the buffer object');
+            console.log("Failed to create the buffer object");
             return -1;
         }
 
@@ -149,9 +151,9 @@
         // usage: STATIC_DRAW, STREAM_DRAW, DYNAMIC_DRAW
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-        var aPosition = gl.getAttribLocation(program, 'aPosition');
+        var aPosition = gl.getAttribLocation(program, "aPosition");
         if (aPosition < 0) {
-            console.log('Failed to get the storage location of aPosition');
+            console.log("Failed to get the storage location of aPosition");
             return -1;
         }
 
@@ -172,5 +174,4 @@
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         draw();
     }
-
 })(window || this);

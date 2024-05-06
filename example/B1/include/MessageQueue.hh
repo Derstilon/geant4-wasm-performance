@@ -7,15 +7,18 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <emscripten.h>
 
-class MessageQueue {
+class MessageQueue
+{
 public:
   MessageQueue();
   ~MessageQueue();
 
-  void Push(const std::string& message);
+  void Push(const std::string &message);
   std::string Pop();
   std::vector<std::string> Dump();
+
 private:
   std::mutex mutex_;
   std::condition_variable condition_;

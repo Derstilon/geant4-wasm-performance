@@ -44,10 +44,10 @@ var preModule = {
         preModule.setStatus(
             left
                 ? "Preparing... (" +
-                (this.totalDependencies - left) +
-                "/" +
-                this.totalDependencies +
-                ")"
+                      (this.totalDependencies - left) +
+                      "/" +
+                      this.totalDependencies +
+                      ")"
                 : "All downloads complete.",
         );
     },
@@ -74,25 +74,25 @@ const writeFile = (data) => {
     Module.init();
     Module.run("example.in");
 
-    // getMessages from pointer
-    var messages = Module.getMessages();
-    // Module.getMessages(messages);
-    console.log(messages.size());
+    // // getMessages from pointer
+    // var messages = Module.getMessages();
+    // // Module.getMessages(messages);
+    // console.log(messages.size());
 
-    let vertices = []
-    for (let i = 0; i < messages.size(); i++) {
-        const message = messages.get(i);
-        let data = message.split(",");
-        let position = data[3].split(" : ");
-        vertices.push({
-            event: Number.parseInt(data[0]),
-            track: Number.parseInt(data[2]),
-            x: Number.parseFloat(position[0]) / 200,
-            y: Number.parseFloat(position[1]) / 200,
-            z: Number.parseFloat(position[2]) / 200,
-        });
-    }
-    postMessage({ type: "render", data: vertices });
+    // let vertices = []
+    // for (let i = 0; i < messages.size(); i++) {
+    //     const message = messages.get(i);
+    //     let data = message.split(",");
+    //     let position = data[3].split(" : ");
+    //     vertices.push({
+    //         event: Number.parseInt(data[0]),
+    //         track: Number.parseInt(data[2]),
+    //         x: Number.parseFloat(position[0]) / 200,
+    //         y: Number.parseFloat(position[1]) / 200,
+    //         z: Number.parseFloat(position[2]) / 200,
+    //     });
+    // }
+    // postMessage({ type: "render", data: vertices });
 
     Module.clear();
 };

@@ -37,13 +37,12 @@
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-B1EventAction::B1EventAction(B1RunAction* runAction)
-: G4UserEventAction(),
-  fRunAction(runAction)
+B1EventAction::B1EventAction(B1RunAction *runAction)
+    : G4UserEventAction(),
+      fRunAction(runAction)
 {
     // create message queue
-
-} 
+}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -53,28 +52,30 @@ B1EventAction::~B1EventAction()
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void B1EventAction::BeginOfEventAction(const G4Event*)
-{}
+void B1EventAction::BeginOfEventAction(const G4Event *)
+{
+}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-void B1EventAction::EndOfEventAction(const G4Event*)
-{   
-    // // get message queue
-    // MessageQueue* fMessageQueue = fRunAction->GetMessageQueue();
-    // // print event number
-    // G4cout << "Event: " << G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID() << G4endl;
-    // // print all messages
-    // std::vector<std::string> messages = fMessageQueue->Dump();
-    // for (auto message : messages) {
-    //     G4cout << message << G4endl;
-    // }
+void B1EventAction::EndOfEventAction(const G4Event *)
+{
+    // get message queue
+    MessageQueue *fMessageQueue = fRunAction->GetMessageQueue();
+    // print event number
+    G4cout << "Event: " << G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID() << G4endl;
+    // print all messages
+    std::vector<std::string> messages = fMessageQueue->Dump();
+    for (auto message : messages)
+    {
+        G4cout << message << G4endl;
+    }
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 //
-MessageQueue* B1EventAction::GetMessageQueue() const
+MessageQueue *B1EventAction::GetMessageQueue() const
 {
     return fRunAction->GetMessageQueue();
 }
