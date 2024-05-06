@@ -7,7 +7,9 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
 
 class MessageQueue
 {

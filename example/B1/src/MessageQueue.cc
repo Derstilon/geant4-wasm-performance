@@ -41,12 +41,17 @@ std::vector<std::string> MessageQueue::Dump()
     queue_.pop();
   }
 #ifdef __EMSCRIPTEN__
+  std::vector<const char *> cstrings;
+  for (const auto &message : messages)
+  {
+    cstrings.push_back(message.c_str());
+  }
   EM_ASM({
     let messages = arguments[0];
-    let vertices = []
+    let vertices = [];
     for (let i = 0; i < messages.size(); i++) {
         const message = messages.get(i);
-        let data = message.split(",");`
+        let data = message.split(",");
         let position = data[3].split(" : ");
         vertices.push({
             event: Number.parseInt(data[0]),
@@ -56,7 +61,7 @@ std::vector<std::string> MessageQueue::Dump()
             z: Number.parseFloat(position[2]) / 200,
         });
     }
-    postMessage({ type: "render", data: vertices }); }, messages);
+    postMessage({ type: "render", data: vertices }); }, cstrings.data());
 #endif
   return messages;
 }
