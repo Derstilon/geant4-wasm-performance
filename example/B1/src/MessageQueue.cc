@@ -47,12 +47,19 @@ std::vector<std::string> MessageQueue::Dump()
     cstrings.push_back(message.c_str());
   }
   EM_ASM({
-    console.log("Dumping messages", arguments[0]);
-    let messages = arguments[0];
+    let cstrings = $0;
+    let length = $1;
+    console.log("cstrings: " + cstrings + " length: " + length);
+    let messages = [];
+    for (let i = 0; i < length; i++) {
+        let strPtr = getValue(cstrings + i * 4, 'i32');
+        let message = UTF8ToString(strPtr);
+        messages.push(message);
+    }
     let vertices = [];
-    for (let i = 0; i < messages.size(); i++) {
-        const message = messages.get(i);
-        let data = message.split(",");
+    console.log("messages: " + messages);
+    for (let i = 0; i < messages.length; i++) {
+        let data = messages[i].split(",");
         let position = data[3].split(" : ");
         vertices.push({
             event: Number.parseInt(data[0]),
@@ -62,7 +69,7 @@ std::vector<std::string> MessageQueue::Dump()
             z: Number.parseFloat(position[2]) / 200,
         });
     }
-    postMessage({ type: "render", data: vertices }); }, cstrings.data());
+    postMessage({ type: "render", data: vertices }); }, cstrings.data(), cstrings.size());
 #endif
   return messages;
 }
