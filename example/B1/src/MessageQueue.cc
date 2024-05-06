@@ -47,6 +47,7 @@ std::vector<std::string> MessageQueue::Dump()
     cstrings.push_back(message.c_str());
   }
   EM_ASM({
+    console.log("Dumping messages", arguments[0]);
     let messages = arguments[0];
     let vertices = [];
     for (let i = 0; i < messages.size(); i++) {
