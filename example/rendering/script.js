@@ -1,5 +1,5 @@
 (function (global) {
-    var canvas, gl, program;
+    var canvas, gl, program, counter;
     var state = {
         eye: {
             x: 0.2,
@@ -24,6 +24,7 @@
 
         // Get canvas element and check if WebGL enabled
         canvas = document.getElementById("glcanvas");
+        counter = document.getElementById("events-count");
         gl = glUtils.checkWebGL(canvas);
 
         // Initialize the shaders and program
@@ -45,10 +46,19 @@
         resizer();
     }
     let draw_data = {};
+    let time = null;
+    const color_palette = [
+        [1.0, 0.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 1.0],
+        [1.0, 1.0, 0.0, 1.0],
+        [1.0, 0.0, 1.0, 1.0],
+    ];
 
     function handleClick(event) {
         return new Promise((resolve) => {
             index++;
+            time = new Date().getTime();
             console.log(`Run simulation ${index}`);
             console.log(`Waiting for runtime to be initialized...`);
             const worker = new Worker("worker.js");
@@ -62,19 +72,31 @@
                     case "render":
                         e.data.data.forEach((d) => {
                             const label = d["event"] + "_" + d["track"];
-                            if (!(label in draw_data)) draw_data[label] = [];
-                            draw_data[label].push(d["x"], d["y"], d["z"]);
+                            const elapsed = new Date().getTime() - time;
+                            const eventsPerSecond = Math.round(
+                                (d["event"] / elapsed) * 1000,
+                            );
+                            counter.innerHTML = `${d["event"]} : ${eventsPerSecond} events/s`;
+                            if (!(label in draw_data))
+                                draw_data[label] = [
+                                    [],
+                                    color_palette[
+                                        d["track"] % color_palette.length
+                                    ],
+                                ];
+                            draw_data[label][0].push(d["x"], d["y"], d["z"]);
                         });
 
                         draw(Object.values(draw_data));
-                        console.log(
-                            `Worker ${index}: ${e.data.type} ${e.data.data.length}`,
-                        );
+                        // console.log(
+                        //     `Worker ${index}: ${e.data.type} ${e.data.data.length}`,
+                        // );
                         break;
                     default:
-                        console.log(
-                            `Worker ${index}: ${e.data.type} ${e.data.data}`,
-                        );
+                        // console.log(
+                        //     `Worker ${index}: ${e.data.type} ${e.data.data}`,
+                        // );
+                        break;
                 }
             };
         });
@@ -82,17 +104,39 @@
 
     // draw!
     function draw(data_list) {
+        console.log("Drawing...");
+        console.log(data_list);
         if (!data_list) {
             data_list = [
-                [0.5, 0, 0, -0.5, 0, 0],
-                [0, 0.5, 0, 0, -0.5, 0],
-                [0, 0, 0.5, 0, 0, -0.5],
+                [
+                    [0.5, 0, 0, -0.5, 0, 0],
+                    [0.0, 1.0, 1.0, 1.0],
+                ],
+                [
+                    [0, 0.5, 0, 0, -0.5, 0],
+                    [0.0, 1.0, 1.0, 1.0],
+                ],
+                [
+                    [0, 0, 0.5, 0, 0, -0.5],
+                    [0.0, 1.0, 1.0, 1.0],
+                ],
             ];
         }
         // Specify the color for clearing <canvas>
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        for (let data of data_list) {
+
+        for (let [data, color] of data_list) {
+            // Get the location of the color uniform
+            var uColor = gl.getUniformLocation(program, "uColor");
+            if (!uColor) {
+                console.log("Failed to get the storage location of uColor");
+                return;
+            }
+
+            // Set the color uniform
+            gl.uniform4f(uColor, color[0], color[1], color[2], color[3]);
+
             // Write the positions of vertices to a vertex shader
             var n = initBuffers(data);
             if (n < 0) {
@@ -157,12 +201,12 @@
             return -1;
         }
 
-        // Assign the buffer object to aPosition variable
+        // Assign the buffer object to a_Position variable
         // https://www.khronos.org/opengles/sdk/docs/man/xhtml/glVertexAttribPointer.xml
         // index, size, type, normalized, stride, pointer
         gl.vertexAttribPointer(aPosition, dim, gl.FLOAT, false, 0, 0);
 
-        // Enable the assignment to aPosition variable
+        // Enable the assignment to a_Position variable
         gl.enableVertexAttribArray(aPosition);
 
         return n;

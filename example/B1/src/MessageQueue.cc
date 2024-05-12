@@ -46,30 +46,36 @@ std::vector<std::string> MessageQueue::Dump()
   {
     cstrings.push_back(message.c_str());
   }
-  EM_ASM({
-    let cstrings = $0;
-    let length = $1;
-    console.log("cstrings: " + cstrings + " length: " + length);
-    let messages = [];
-    for (let i = 0; i < length; i++) {
-        let strPtr = getValue(cstrings + i * 4, 'i32');
-        let message = UTF8ToString(strPtr);
-        messages.push(message);
-    }
-    let vertices = [];
-    console.log("messages: " + messages);
-    for (let i = 0; i < messages.length; i++) {
-        let data = messages[i].split(",");
-        let position = data[3].split(" : ");
-        vertices.push({
-            event: Number.parseInt(data[0]),
-            track: Number.parseInt(data[2]),
-            x: Number.parseFloat(position[0]) / 200,
-            y: Number.parseFloat(position[1]) / 200,
-            z: Number.parseFloat(position[2]) / 200,
-        });
-    }
-    postMessage({ type: "render", data: vertices }); }, cstrings.data(), cstrings.size());
+  EM_ASM(
+      {
+        let cstrings = $0;
+        let length = $1;
+        // console.log("cstrings: " + cstrings + " length: " + length);
+        let messages = [];
+        for (let i = 0; i < length; i++)
+        {
+          let strPtr = getValue(cstrings + i * 4, 'i32');
+          let message = UTF8ToString(strPtr);
+          messages.push(message);
+        }
+        let vertices = [];
+        // console.log("messages: " + messages);
+        for (let i = 0; i < messages.length; i++)
+        {
+          let data = messages[i].split(",");
+          let position = data[3].split(" : ");
+          vertices.push({
+            event : Number.parseInt(data[0]),
+            track : Number.parseInt(data[2]),
+            x : Number.parseFloat(position[0]) / 200,
+            y : Number.parseFloat(position[1]) / 200,
+            z : Number.parseFloat(position[2]) / 200,
+            particle : data[1]
+          });
+        }
+        postMessage({type : "render", data : vertices});
+      },
+      cstrings.data(), cstrings.size());
 #endif
   return messages;
 }
