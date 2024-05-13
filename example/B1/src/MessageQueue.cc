@@ -70,7 +70,7 @@ std::vector<std::string> MessageQueue::Dump()
             x : Number.parseFloat(position[0]) / 200,
             y : Number.parseFloat(position[1]) / 200,
             z : Number.parseFloat(position[2]) / 200,
-            particle : data[1]
+            particle : data[1].trim()
           });
         }
         postMessage({type : "render", data : vertices});

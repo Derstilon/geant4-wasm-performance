@@ -47,13 +47,45 @@
     }
     let draw_data = {};
     let time = null;
-    const color_palette = [
-        [1.0, 0.0, 0.0, 1.0],
-        [0.0, 1.0, 0.0, 1.0],
-        [0.0, 0.0, 1.0, 1.0],
-        [1.0, 1.0, 0.0, 1.0],
-        [1.0, 0.0, 1.0, 1.0],
-    ];
+    const color_palette = {};
+
+    let colorIndex = 0;
+
+    function generateColor() {
+        // Define primary and secondary colors in RGB
+        const colors = [
+            [1.0, 0.0, 0.0], // Red
+            [1.0, 1.0, 0.0], // Yellow
+            [0.0, 1.0, 0.0], // Green
+            [0.0, 1.0, 1.0], // Cyan
+            [0.0, 0.0, 1.0], // Blue
+            [1.0, 0.0, 1.0], // Magenta
+        ];
+
+        // Calculate the number of steps between each primary/secondary color
+        const steps = Math.floor(360 / colors.length);
+
+        // Calculate the current step
+        const step = colorIndex % steps;
+
+        // Calculate the current color
+        const color1 = colors[Math.floor(colorIndex / steps) % colors.length];
+        const color2 =
+            colors[(Math.floor(colorIndex / steps) + 1) % colors.length];
+
+        // Interpolate between the two colors
+        const color = [
+            color1[0] * (1 - step / steps) + color2[0] * (step / steps),
+            color1[1] * (1 - step / steps) + color2[1] * (step / steps),
+            color1[2] * (1 - step / steps) + color2[2] * (step / steps),
+            1.0, // Alpha
+        ];
+
+        // Increment the color index
+        colorIndex++;
+
+        return color;
+    }
 
     function handleClick(event) {
         return new Promise((resolve) => {
@@ -72,18 +104,26 @@
                     case "render":
                         e.data.data.forEach((d) => {
                             const label = d["event"] + "_" + d["track"];
+                            const particle = d["particle"];
                             const elapsed = new Date().getTime() - time;
                             const eventsPerSecond = Math.round(
                                 (d["event"] / elapsed) * 1000,
                             );
                             counter.innerHTML = `${d["event"]} : ${eventsPerSecond} events/s`;
-                            if (!(label in draw_data))
+                            if (!(label in draw_data)) {
+                                // Generate a new color if this particle is not in the color_palette
+                                if (!(particle in color_palette)) {
+                                    color_palette[particle] =
+                                        particle == "proton"
+                                            ? [1.0, 0.0, 0.0, 1.0]
+                                            : [0.0, 0.0, 1.0, 1.0];
+                                }
+
                                 draw_data[label] = [
                                     [],
-                                    color_palette[
-                                        d["track"] % color_palette.length
-                                    ],
+                                    color_palette[particle],
                                 ];
+                            }
                             draw_data[label][0].push(d["x"], d["y"], d["z"]);
                         });
 
