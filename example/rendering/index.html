@@ -60,7 +60,7 @@
   /gps/direction 0. 0. 1.
   /gps/position 0. 0. -2 cm
 
-  /run/beamOn 10000
+  /run/beamOn 2000
 `;
         </script>
     </head>
@@ -71,7 +71,10 @@
             <code>&lt;canvas&gt;</code> element.
         </canvas>
         <button id="run-btn">Run</button>
-        <p>Event counter: <span id="events-count"></span></p>
+        <p>
+            Event counter: <span id="events-count"></span><br />Color coding:<br />
+            <span id="particle-colors"></span>
+        </p>
 
         <!-- Shaders -->
         <script

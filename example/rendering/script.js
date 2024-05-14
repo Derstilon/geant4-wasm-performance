@@ -1,5 +1,5 @@
 (function (global) {
-    var canvas, gl, program, counter;
+    var canvas, gl, program, counter, colorsLegend;
     var state = {
         eye: {
             x: 0.2,
@@ -7,7 +7,6 @@
             z: 0.25,
         },
     };
-    var data = [];
     let index = 0;
 
     glUtils.SL.init({
@@ -25,6 +24,7 @@
         // Get canvas element and check if WebGL enabled
         canvas = document.getElementById("glcanvas");
         counter = document.getElementById("events-count");
+        colorsLegend = document.getElementById("particle-colors");
         gl = glUtils.checkWebGL(canvas);
 
         // Initialize the shaders and program
@@ -48,44 +48,52 @@
     let draw_data = {};
     let time = null;
     const color_palette = {};
+    /*
+    255, 0, 0
+    255, 255, 0
+    0, 255, 0
+    0, 255, 255
+    0, 0, 255
+    255, 0, 255
 
-    let colorIndex = 0;
+    */
 
-    function generateColor() {
-        // Define primary and secondary colors in RGB
-        const colors = [
-            [1.0, 0.0, 0.0], // Red
-            [1.0, 1.0, 0.0], // Yellow
-            [0.0, 1.0, 0.0], // Green
-            [0.0, 1.0, 1.0], // Cyan
-            [0.0, 0.0, 1.0], // Blue
-            [1.0, 0.0, 1.0], // Magenta
-        ];
+    function* generateColor() {
+        const opacity = 1;
+        const rgbValue = (angle) => {
+            if (angle < 60) return 1.0;
+            if (angle < 120) return 1.0 - (angle - 60.0) / 60;
+            if (angle < 240) return 0.0;
+            if (angle < 300) return (angle - 240.0) / 60;
+            return 1.0;
+        };
+        const rValue = (angle) => rgbValue(angle % 360);
+        const gValue = (angle) => rgbValue((angle + 120) % 360);
+        const bValue = (angle) => rgbValue((angle + 240) % 360);
 
-        // Calculate the number of steps between each primary/secondary color
-        const steps = Math.floor(360 / colors.length);
-
-        // Calculate the current step
-        const step = colorIndex % steps;
-
-        // Calculate the current color
-        const color1 = colors[Math.floor(colorIndex / steps) % colors.length];
-        const color2 =
-            colors[(Math.floor(colorIndex / steps) + 1) % colors.length];
-
-        // Interpolate between the two colors
-        const color = [
-            color1[0] * (1 - step / steps) + color2[0] * (step / steps),
-            color1[1] * (1 - step / steps) + color2[1] * (step / steps),
-            color1[2] * (1 - step / steps) + color2[2] * (step / steps),
-            1.0, // Alpha
-        ];
-
-        // Increment the color index
-        colorIndex++;
-
-        return color;
+        let prevAmountOfSteps = 0;
+        let amountOfSteps = 3;
+        let colorIndex = 0;
+        let stepSize = 360.0 / amountOfSteps;
+        let angle = 0;
+        while (amountOfSteps < 360) {
+            yield [rValue(angle), gValue(angle), bValue(angle), opacity];
+            colorIndex++;
+            if (colorIndex >= amountOfSteps) {
+                const tmp = prevAmountOfSteps;
+                prevAmountOfSteps = amountOfSteps;
+                amountOfSteps += tmp;
+                colorIndex = 0;
+                stepSize = 360.0 / amountOfSteps;
+                angle += stepSize * 1.5;
+            } else {
+                angle += stepSize;
+            }
+        }
+        return [1.0, 0.0, 0.0, opacity];
     }
+
+    const colorGenerator = generateColor();
 
     function handleClick(event) {
         return new Promise((resolve) => {
@@ -109,20 +117,32 @@
                             const eventsPerSecond = Math.round(
                                 (d["event"] / elapsed) * 1000,
                             );
-                            counter.innerHTML = `${d["event"]} : ${eventsPerSecond} events/s`;
+                            counter.innerHTML = `${
+                                d["event"] + 1
+                            } : ${eventsPerSecond} events/s`;
                             if (!(label in draw_data)) {
                                 // Generate a new color if this particle is not in the color_palette
                                 if (!(particle in color_palette)) {
-                                    color_palette[particle] =
-                                        particle == "proton"
-                                            ? [1.0, 0.0, 0.0, 1.0]
-                                            : [0.0, 0.0, 1.0, 1.0];
+                                    const nextColor = colorGenerator.next();
+                                    color_palette[particle] = nextColor.value;
+                                    const rgbColor = nextColor.value.map((v) =>
+                                        Math.round(v * 255),
+                                    );
+                                    const colorBox =
+                                        document.createElement("div");
+                                    colorBox.style.backgroundColor = `rgba(${rgbColor.join(
+                                        ",",
+                                    )})`;
+                                    colorBox.style.width = "22px";
+                                    colorBox.style.height = "22px";
+                                    colorBox.style.display = "inline-block";
+                                    colorBox.style.marginRight = "5px";
+
+                                    colorsLegend.appendChild(colorBox);
+                                    colorsLegend.innerHTML += `Particle: ${particle}<br>`;
                                 }
 
-                                draw_data[label] = [
-                                    [],
-                                    color_palette[particle],
-                                ];
+                                draw_data[label] = [[], particle];
                             }
                             draw_data[label][0].push(d["x"], d["y"], d["z"]);
                         });
@@ -144,8 +164,8 @@
 
     // draw!
     function draw(data_list) {
-        console.log("Drawing...");
-        console.log(data_list);
+        // console.log("Drawing...");
+        // console.log(data_list);
         if (!data_list) {
             data_list = [
                 [
@@ -166,7 +186,8 @@
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        for (let [data, color] of data_list) {
+        for (let [data, colorId] of data_list) {
+            const color = color_palette[colorId] ?? colorId;
             // Get the location of the color uniform
             var uColor = gl.getUniformLocation(program, "uColor");
             if (!uColor) {
