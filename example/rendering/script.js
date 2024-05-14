@@ -46,7 +46,6 @@
         resizer();
     }
     let draw_data = {};
-    let time = null;
     const color_palette = {};
     /*
     255, 0, 0
@@ -93,33 +92,61 @@
         return [1.0, 0.0, 0.0, opacity];
     }
 
+    const messageLog = [];
+    const simLog = {};
+    let eventCount = 0;
+    const marchingEPS = [];
+    const encoder = new TextEncoder(); // TextEncoder is part of the Encoding API and encodes a string into bytes using UTF-8
+
     const colorGenerator = generateColor();
 
     function handleClick(event) {
+        simLog.startTime = Date.now();
+        const interval = setInterval(() => {
+            const elapsed = Date.now() - simLog.startTime;
+            const marchingAmount = 5;
+            const eventsPerSecond = Math.round((eventCount / elapsed) * 1000);
+            marchingEPS.push(eventsPerSecond);
+            counter.innerHTML = `${eventCount} : ${Math.round(
+                marchingEPS.slice(-marchingAmount).reduce((a, b) => a + b, 0) /
+                    Math.min(marchingEPS.length, marchingAmount),
+            )} events/s`;
+        }, 2000);
         return new Promise((resolve) => {
             index++;
-            time = new Date().getTime();
             console.log(`Run simulation ${index}`);
             console.log(`Waiting for runtime to be initialized...`);
             const worker = new Worker("worker.js");
 
             worker.onmessage = function (e) {
+                const time = Date.now();
                 switch (e.data.type) {
                     case "event":
                         if (e.data.data === "onRuntimeInitialized")
                             worker.postMessage(simulationConf);
                         break;
                     case "render":
+                        messageLog.push({
+                            sendTime: e.data.time ?? null,
+                            receiveTime: time,
+                            packageSize: encoder.encode(
+                                JSON.stringify(e.data.data),
+                            ).length, // Get the length of the byte array, which is the byte size of the data
+                        });
                         e.data.data.forEach((d) => {
-                            const label = d["event"] + "_" + d["track"];
-                            const particle = d["particle"];
-                            const elapsed = new Date().getTime() - time;
-                            const eventsPerSecond = Math.round(
-                                (d["event"] / elapsed) * 1000,
-                            );
-                            counter.innerHTML = `${
-                                d["event"] + 1
-                            } : ${eventsPerSecond} events/s`;
+                            const positionScale = 0.005;
+                            const data = d.split(",");
+                            const position = data[3]
+                                .split(" : ")
+                                .map(
+                                    (v) => Number.parseFloat(v) * positionScale,
+                                );
+                            const event = Number.parseInt(data[0]);
+                            eventCount = event + 1;
+                            const particle = data[1].trim();
+                            const track = Number.parseInt(data[2]);
+                            const label = `${event}-${track}`;
+
                             if (!(label in draw_data)) {
                                 // Generate a new color if this particle is not in the color_palette
                                 if (!(particle in color_palette)) {
@@ -144,13 +171,17 @@
 
                                 draw_data[label] = [[], particle];
                             }
-                            draw_data[label][0].push(d["x"], d["y"], d["z"]);
+                            draw_data[label][0].push(...position);
                         });
 
                         draw(Object.values(draw_data));
-                        // console.log(
-                        //     `Worker ${index}: ${e.data.type} ${e.data.data.length}`,
-                        // );
+                        break;
+                    case "exit":
+                        clearInterval(interval);
+                        simLog.endTime = Date.now();
+                        console.log(marchingEPS);
+                        console.log(messageLog);
+                        console.log(simLog);
                         break;
                     default:
                         // console.log(
