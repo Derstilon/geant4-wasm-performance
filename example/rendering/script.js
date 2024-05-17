@@ -1,23 +1,138 @@
+// @ts-nocheck
 (function (global) {
-    let RENDER_THRESHOLD = 1;
-    let SCALE = 1;
-    let EVENT_COUNT = 10000;
+    // CONFIG VARIABLES
+    let RENDER_THRESHOLD = 1,
+        EVENT_COUNT = 100000,
+        RUNNING_FLAG = false,
+        PERSPECTIVE = 0;
+
+    // GLOBAL VARIABLES
     let runButton,
         saveButton,
         canvas,
+        perspectiveButtons,
         gl,
         program,
         counter,
         colorsLegend,
         inputRenderThreshold,
         simulatedEventsRequest,
-        runningFlag = false;
+        logInterval;
+
+    // Initialize WebGL Utilities
+    glUtils.SL.init({ callback: main });
+
+    // Main Initialization Function
+    function main() {
+        initializeUIElements();
+        initializeWebGL();
+        resizer();
+        window.addEventListener("resize", resizer);
+    }
+
+    // Initialize UI Elements
+    function initializeUIElements() {
+        runButton = document.querySelector("#run-btn");
+        if (runButton) runButton.addEventListener("click", handleClick);
+
+        saveButton = document.querySelector("#save-btn");
+        if (saveButton)
+            saveButton.addEventListener("click", () => saveLogFile());
+
+        // Attach function to global scope
+        window.saveLogFile = saveLogFile;
+
+        inputRenderThreshold = document.querySelector("#input-threshold");
+        if (inputRenderThreshold) {
+            inputRenderThreshold.value = RENDER_THRESHOLD;
+            inputRenderThreshold.addEventListener("change", (event) => {
+                RENDER_THRESHOLD = event.target.value;
+            });
+        }
+
+        perspectiveButtons = document.querySelectorAll(
+            "#perspective-header > button",
+        );
+        if (perspectiveButtons && perspectiveButtons.length > 0) {
+            perspectiveButtons.forEach((button, index) => {
+                button.addEventListener("click", () => {
+                    PERSPECTIVE = index;
+                    draw();
+                });
+            });
+        }
+
+        simulatedEventsRequest = document.querySelector("#input-events");
+        if (simulatedEventsRequest) {
+            simulatedEventsRequest.value = EVENT_COUNT;
+            simulatedEventsRequest.addEventListener("change", (event) => {
+                EVENT_COUNT = Math.round(event.target.value);
+                EVENT_COUNT = EVENT_COUNT <= 0 ? 1 : EVENT_COUNT;
+                simulatedEventsRequest.value = EVENT_COUNT;
+            });
+        }
+
+        counter = document.getElementById("events-count");
+        colorsLegend = document.getElementById("particle-colors");
+    }
+
+    // Initialize WebGL
+    function initializeWebGL() {
+        canvas = document.getElementById("glcanvas");
+        gl = glUtils.checkWebGL(canvas);
+
+        var vertexShader = glUtils.getShader(
+                gl,
+                gl.VERTEX_SHADER,
+                glUtils.SL.Shaders.v1.vertex,
+            ),
+            fragmentShader = glUtils.getShader(
+                gl,
+                gl.FRAGMENT_SHADER,
+                glUtils.SL.Shaders.v1.fragment,
+            );
+
+        program = glUtils.createProgram(gl, vertexShader, fragmentShader);
+
+        gl.useProgram(program);
+    }
+
+    // Window Resizer
+    function resizer() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        draw();
+    }
+
     let state = {
-        eye: {
-            x: 460,
-            y: 90,
-            z: 170,
-        },
+        eye: [
+            {
+                x: 360,
+                y: 30,
+                z: 110,
+            },
+            {
+                x: 660,
+                y: 180,
+                z: 410,
+            },
+            {
+                x: 0,
+                y: 0,
+                z: 500,
+            },
+            {
+                x: 0.1,
+                y: 450,
+                z: -0.1,
+            },
+            {
+                x: 500,
+                y: 0,
+                z: 0,
+            },
+        ],
         simulatedTrajectories: {},
         colorPalette: {},
         particleCounter: {},
@@ -33,16 +148,8 @@
         },
     };
 
-    let logInterval;
-
     const encoder = new TextEncoder(); // TextEncoder is part of the Encoding API and encodes a string into bytes using UTF-8
     const messageQueue = new Array();
-
-    glUtils.SL.init({
-        callback: function () {
-            main();
-        },
-    });
 
     function initBuffers(data) {
         let dim = 3;
@@ -97,9 +204,7 @@
     }
 
     // draw!
-    function draw(data_list) {
-        // console.log("Drawing...");
-        // console.log(data_list);
+    function draw(data_list = Object.values(state.simulatedTrajectories)) {
         if (!data_list) {
             data_list = [];
         }
@@ -109,7 +214,7 @@
                 [1.0, 1.0, 1.0, 1.0],
             ],
             [
-                [0, 150.0, 0, 0, -150.0, 0],
+                [0, 100.0, 0, 0, -100.0, 0],
                 [1.0, 1.0, 1.0, 1.0],
             ],
             [
@@ -170,8 +275,12 @@
             // var ex=0.25,ey=0.25,ez=1;
             mm = mat4.lookAt(
                 mm,
-                vec3.fromValues(state.eye.x, state.eye.y, state.eye.z),
-                vec3.fromValues(0, 5, 0),
+                vec3.fromValues(
+                    state.eye[PERSPECTIVE].x,
+                    state.eye[PERSPECTIVE].y,
+                    state.eye[PERSPECTIVE].z,
+                ),
+                vec3.fromValues(0, 0, 0),
                 vec3.fromValues(0, 1, 0),
             );
             var uViewMatrix = gl.getUniformLocation(program, "uViewMatrix");
@@ -180,70 +289,6 @@
             // Draw a line
             gl.drawArrays(gl.LINE_STRIP, 0, n);
         }
-    }
-
-    function resizer() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        draw();
-    }
-
-    function main() {
-        // Register Callbacks
-        runButton = document.querySelector("#run-btn");
-        if (runButton) runButton.addEventListener("click", handleClick);
-
-        saveButton = document.querySelector("#save-btn");
-        if (saveButton)
-            saveButton.addEventListener("click", () => saveLogFile());
-
-        // Attach function to global scope
-        window.saveLogFile = saveLogFile;
-
-        inputRenderThreshold = document.querySelector("#input-threshold");
-        if (inputRenderThreshold) {
-            inputRenderThreshold.value = RENDER_THRESHOLD;
-            inputRenderThreshold.addEventListener("change", (event) => {
-                RENDER_THRESHOLD = event.target.value;
-            });
-        }
-
-        simulatedEventsRequest = document.querySelector("#input-events");
-        if (simulatedEventsRequest) {
-            simulatedEventsRequest.value = EVENT_COUNT;
-            simulatedEventsRequest.addEventListener("change", (event) => {
-                EVENT_COUNT = Math.round(event.target.value);
-                EVENT_COUNT = EVENT_COUNT <= 0 ? 1 : EVENT_COUNT;
-                simulatedEventsRequest.value = EVENT_COUNT;
-            });
-        }
-
-        window.addEventListener("resize", resizer);
-
-        // Get canvas element and check if WebGL enabled
-        canvas = document.getElementById("glcanvas");
-        counter = document.getElementById("events-count");
-        colorsLegend = document.getElementById("particle-colors");
-        gl = glUtils.checkWebGL(canvas);
-
-        // Initialize the shaders and program
-        var vertexShader = glUtils.getShader(
-                gl,
-                gl.VERTEX_SHADER,
-                glUtils.SL.Shaders.v1.vertex,
-            ),
-            fragmentShader = glUtils.getShader(
-                gl,
-                gl.FRAGMENT_SHADER,
-                glUtils.SL.Shaders.v1.fragment,
-            );
-
-        program = glUtils.createProgram(gl, vertexShader, fragmentShader);
-
-        gl.useProgram(program);
-
-        resizer();
     }
 
     function* generateColor() {
@@ -371,7 +416,7 @@
         const coords = points.slice(0, 3).concat(points.slice(-3));
         const distance = getDistance(...coords);
         // if (distance > RENDER_THRESHOLD) console.log(distance);
-        return distance > RENDER_THRESHOLD * SCALE;
+        return distance > RENDER_THRESHOLD;
     }
 
     function optimizeTrajectories(points) {
@@ -423,7 +468,7 @@
             const data = d.split(",");
             const position = data[3]
                 .split(" : ")
-                .map((v) => Number.parseFloat(v) * SCALE);
+                .map((v) => Number.parseFloat(v));
             const event = Number.parseInt(data[0]);
             const particle = data[1].trim();
             const track = Number.parseInt(data[2]);
@@ -485,7 +530,7 @@
     }
 
     function stopMainLoop() {
-        runningFlag = false;
+        RUNNING_FLAG = false;
         runButton.innerHTML = "Done!";
         clearInterval(logInterval);
         logMetrics();
@@ -496,7 +541,7 @@
     }
 
     function startMainLoop() {
-        runningFlag = true;
+        RUNNING_FLAG = true;
         runButton.innerHTML = "Running...";
         clearInterval(logInterval);
         setTimeout(logMetrics);
@@ -581,7 +626,7 @@
                             ).length, // Get the length of the byte array, which is the byte size of the data
                         });
                         messageQueue.push(e.data.data);
-                        if (!runningFlag) startMainLoop();
+                        if (!RUNNING_FLAG) startMainLoop();
                         break;
                     case "exit":
                         state.log.endTime = Date.now();

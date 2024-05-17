@@ -21,21 +21,25 @@
             canvas {
                 display: block;
             }
-            #controls-header {
+            #UI {
                 position: absolute;
                 top: 10px;
                 left: 10px;
+                color: white;
             }
-            #controls-header * {
+            #UI > * {
+                margin-top: 10px;
+                padding: 10px;
+            }
+            #controls-header > * {
                 margin-right: 10px;
                 padding: 10px;
             }
             #stats-paragraph {
-                position: absolute;
-                top: 50px;
-                left: 10px;
                 padding: 10px;
-                color: white;
+            }
+            #perspective-header > * {
+                padding: 5px;
             }
         </style>
     </head>
@@ -45,17 +49,27 @@
             Your browser doesn't appear to support the HTML5
             <code>&lt;canvas&gt;</code> element.
         </canvas>
-        <div id="controls-header">
-            <button id="run-btn">Run</button>
-            <input id="input-threshold" type="number" />
-            <input id="input-events" type="number" />
-            <button id="save-btn">Save Logfile</button>
+        <div id="UI">
+            <div id="controls-header">
+                <button id="run-btn">Run</button>
+                <input id="input-threshold" type="number" />
+                <input id="input-events" type="number" />
+                <button id="save-btn">Save Logfile</button>
+            </div>
+            <div id="perspective-header">
+                Perspective:
+                <button id="perspective-1">Default</button>
+                <button id="perspective-2">Default Far</button>
+                <button id="perspective-3">XY</button>
+                <button id="perspective-4">XZ</button>
+                <button id="perspective-5">YZ</button>
+            </div>
+            <p id="stats-paragraph">
+                Statistics: <br /><span id="events-count"></span><br />Color
+                coding:<br />
+                <span id="particle-colors"></span>
+            </p>
         </div>
-        <p id="stats-paragraph">
-            Statistics: <br /><span id="events-count"></span><br />Color
-            coding:<br />
-            <span id="particle-colors"></span>
-        </p>
 
         <!-- Shaders -->
         <script
