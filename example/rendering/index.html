@@ -21,13 +21,16 @@
             canvas {
                 display: block;
             }
-            button {
+            #controls-header {
                 position: absolute;
                 top: 10px;
                 left: 10px;
+            }
+            #controls-header * {
+                margin-right: 10px;
                 padding: 10px;
             }
-            button + p {
+            #stats-paragraph {
                 position: absolute;
                 top: 50px;
                 left: 10px;
@@ -35,34 +38,6 @@
                 color: white;
             }
         </style>
-        <script>
-            const simulationConf = `
-  /process/em/verbose 0
-  /run/verbose 0
-  /control/verbose 0
-
-  /score/create/boxMesh boxMesh
-  /score/mesh/boxSize 50. 50. 50. mm
-  /score/mesh/nBin 1 1 1
-  /score/quantity/energyDeposit eDep
-
-  /score/close
-
-  /run/initialize
-
-  /process/em/verbose 0
-  /run/verbose 0
-  /control/verbose 0
-
-
-  /gps/particle proton
-  /gps/energy 60 MeV
-  /gps/direction 0. 0. 1.
-  /gps/position 0. 0. -2 cm
-
-  /run/beamOn 2000
-`;
-        </script>
     </head>
 
     <body>
@@ -70,8 +45,13 @@
             Your browser doesn't appear to support the HTML5
             <code>&lt;canvas&gt;</code> element.
         </canvas>
-        <button id="run-btn">Run</button>
-        <p>
+        <div id="controls-header">
+            <button id="run-btn">Run</button>
+            <input id="input-threshold" type="number" />
+            <input id="input-events" type="number" />
+            <button id="save-btn">Save Logfile</button>
+        </div>
+        <p id="stats-paragraph">
             Statistics: <br /><span id="events-count"></span><br />Color
             coding:<br />
             <span id="particle-colors"></span>
