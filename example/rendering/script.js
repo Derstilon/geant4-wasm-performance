@@ -2,7 +2,8 @@
 (function (global) {
     // CONFIG VARIABLES
     let RENDER_THRESHOLD = 0.01,
-        EVENT_COUNT = 100000,
+        EVENT_COUNT = 1000,
+        BEAM = 1,
         RUNNING_FLAG = false,
         PERSPECTIVE = 0,
         TARGET_FPS = 90,
@@ -20,6 +21,24 @@
         inputRenderThreshold,
         simulatedEventsRequest,
         logInterval;
+
+    const particleOptions = [
+        ["proton", "60 MeV"],
+        ["e+", "6 MeV"],
+    ];
+
+    const mainParticles = [
+        "proton",
+        "e+",
+        "gamma",
+        "e-",
+        "neutron",
+        "alpha",
+        "deuteron",
+        "He3",
+        "triton",
+        "B10",
+    ];
 
     // Initialize WebGL Utilities
     glUtils.SL.init({ callback: main });
@@ -145,6 +164,7 @@
         totalParseTrajectoryTime: 0,
         trackCount: 0,
         framesCount: 0,
+        messageAmount: 0,
         log: {
             messages: new Array(),
             optimizations: new Array(),
@@ -624,6 +644,9 @@
                         clearLogs();
                         colorGenerator = generateColor();
                         colorsLegend.innerHTML = "";
+                        mainParticles.forEach((particle) =>
+                            assignColorToParticle(particle),
+                        );
                         if (e.data.data === "onRuntimeInitialized") {
                             worker.postMessage(`
   /process/em/verbose 0
@@ -644,8 +667,8 @@
   /control/verbose 0
 
 
-  /gps/particle proton
-  /gps/energy 60 MeV
+  /gps/particle ${particleOptions[BEAM][0]}
+  /gps/energy ${particleOptions[BEAM][1]}
   /gps/direction 0. 0. 1.
   /gps/position 0. 0. -2 cm
 
@@ -657,6 +680,7 @@
                         }
                         break;
                     case "render":
+                        state.messageAmount++;
                         state.log.messages.push({
                             sendTime: e.data.time ?? null,
                             receiveTime: time,

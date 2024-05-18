@@ -31,10 +31,16 @@ std::string MessageQueue::Pop()
 
 std::vector<std::string> MessageQueue::Dump()
 {
-	auto length = static_cast<int>(queue_.size());
-	std::vector<std::string> messages(length);
 	std::lock_guard<std::mutex>
 		lock(mutex_);
+	auto length = static_cast<int>(queue_.size());
+	std::vector<std::string> messages(length);
+	dump_counter_++; // Increment the counter
+	if (dump_counter_ < max_dump_counter_)
+	{
+		return messages;
+	}
+	dump_counter_ = 0;
 	for (int i = 0; i < length; i++)
 	{
 		messages[i] = queue_.front();
@@ -57,6 +63,7 @@ std::vector<std::string> MessageQueue::Dump()
 				let message = UTF8ToString(strPtr);
 				messages.push(message);
 			}
+			// TODO : Check SharedArrayBuffer for better performance
 			postMessage({type : "render", data : messages, time : Date.now()});
 		},
 		cstrings.data(), cstrings.size());

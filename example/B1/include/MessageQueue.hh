@@ -25,6 +25,8 @@ private:
   std::mutex mutex_;
   std::condition_variable condition_;
   std::queue<std::string> queue_;
+  int dump_counter_ = 0;
+  int max_dump_counter_ = 10;
 };
 
 #endif
