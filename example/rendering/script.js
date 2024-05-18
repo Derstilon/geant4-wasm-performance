@@ -7,7 +7,8 @@
         RUNNING_FLAG = false,
         PERSPECTIVE = 0,
         TARGET_FPS = 90,
-        DISPLAY_STATS = true;
+        DISPLAY_STATS = true,
+        RENDER_ONLY_NEW = true;
 
     // GLOBAL VARIABLES
     let runButton,
@@ -168,6 +169,7 @@
         log: {
             messages: new Array(),
             optimizations: new Array(),
+            renders: new Array(),
             framesPerSecond: new Array(),
             messagesPerSecond: new Array(),
             eventsPerSecond: new Array(),
@@ -508,7 +510,7 @@
             const event = Number.parseInt(data[0]);
             const particle = data[1].trim();
             const track = Number.parseInt(data[2]);
-            const label = `${event}-${track}`;
+            const label = `${event}-${track}-${particle}`;
             state.eventCount = event + 1;
             if (track > tracksPerEvent) tracksPerEvent = track;
             else {
@@ -607,16 +609,39 @@
                 state.framesCount++;
                 // draw the trajectories
                 const drawStartTime = Date.now();
-                draw(
-                    false,
-                    Object.entries(state.simulatedTrajectories)
-                        .filter(([k, v]) => trajectoriesToRender.includes(k))
-                        .map(([k, v]) => v),
-                );
+                if (RENDER_ONLY_NEW)
+                    draw(
+                        false,
+                        Object.entries(state.simulatedTrajectories)
+                            .filter(([k, v]) =>
+                                trajectoriesToRender.includes(k),
+                            )
+                            .map(([k, v]) => v),
+                    );
+                else draw();
                 lastDrawEndTime = Date.now();
                 renderTime = lastDrawEndTime - drawStartTime;
                 state.totalRenderTime += renderTime;
-                //     // break handleLoop;
+                if (RENDER_ONLY_NEW)
+                    state.log.renders.push({
+                        renderTime,
+                        //count all particle occurrences in trajectoriesToRender
+                        renderedParticles: trajectoriesToRender.reduce(
+                            (acc, curr) => {
+                                const particle =
+                                    state.simulatedTrajectories[curr][1];
+                                acc[particle] ??= 0;
+                                acc[particle]++;
+                                return acc;
+                            },
+                            {},
+                        ),
+                    });
+                else
+                    state.log.renders.push({
+                        renderTime,
+                        renderedParticles: state.particleCounter,
+                    });
             } else {
                 state.skippedFrames++;
             }
