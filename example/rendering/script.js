@@ -1,10 +1,12 @@
 // @ts-nocheck
 (function (global) {
     // CONFIG VARIABLES
-    let RENDER_THRESHOLD = 1,
+    let RENDER_THRESHOLD = 0.01,
         EVENT_COUNT = 100000,
         RUNNING_FLAG = false,
-        PERSPECTIVE = 0;
+        PERSPECTIVE = 0,
+        TARGET_FPS = 90,
+        DISPLAY_STATS = true;
 
     // GLOBAL VARIABLES
     let runButton,
@@ -137,12 +139,17 @@
         colorPalette: {},
         particleCounter: {},
         eventCount: 0,
+        skippedFrames: 0,
+        totalRenderTime: 0,
+        totalReceiveMessageTime: 0,
+        totalParseTrajectoryTime: 0,
         trackCount: 0,
         framesCount: 0,
         log: {
             messages: new Array(),
             optimizations: new Array(),
             framesPerSecond: new Array(),
+            messagesPerSecond: new Array(),
             eventsPerSecond: new Array(),
             tracksPerSecond: new Array(),
         },
@@ -155,11 +162,6 @@
         let dim = 3;
         // define vertices in 3d space
         var vertices = new Float32Array(data);
-        // normalize data
-        //   var vertices = new Float32Array([
-        //     -0.5, -0.5,   -0.5, +0.5,  0.0, 0.0,  0.0, +0.5
-        //     // -0.5, -0.5,   -0.5, +0.5,  0.0, 0.0,  0.0, +0.5,  +0.5, -0.5
-        //   ]);
         // The number of vertices
         var n = data.length / dim;
         // var n = 5;
@@ -204,10 +206,10 @@
     }
 
     // draw!
-    function draw(data_list = Object.values(state.simulatedTrajectories)) {
-        if (!data_list) {
-            data_list = [];
-        }
+    function draw(
+        clearPrevious = true,
+        data_list = Object.values(state.simulatedTrajectories) ?? [],
+    ) {
         data_list.push(
             [
                 [150, 0, 0, -150, 0, 0],
@@ -222,9 +224,12 @@
                 [1.0, 1.0, 1.0, 1.0],
             ],
         );
-        // Specify the color for clearing <canvas>
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        if (clearPrevious) {
+            // Specify the color for clearing <canvas>
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+        }
 
         // Create projection matrix
         const fovy = Math.PI / 4; // 45 degrees field of view
@@ -245,6 +250,28 @@
         );
         gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
 
+        var mm = mat4.create();
+
+        // lookAt -
+        // out, eye, center, up
+        // out = output matrix
+        // eye = position of the "camera", or eyes, while "looking at" the center
+        // center = the focal point, where we're looking
+        // up = the "vertical" up direction from the center
+        // var ex=0.25,ey=0.25,ez=1;
+        mm = mat4.lookAt(
+            mm,
+            vec3.fromValues(
+                state.eye[PERSPECTIVE].x,
+                state.eye[PERSPECTIVE].y,
+                state.eye[PERSPECTIVE].z,
+            ),
+            vec3.fromValues(0, 0, 0),
+            vec3.fromValues(0, 1, 0),
+        );
+        var uViewMatrix = gl.getUniformLocation(program, "uViewMatrix");
+        gl.uniformMatrix4fv(uViewMatrix, false, mm);
+
         for (let [data, colorId] of data_list) {
             if (data.length === 0) continue;
             const color = state.colorPalette[colorId] ?? colorId;
@@ -264,27 +291,6 @@
                 console.log("Failed to set the positions of the vertices");
                 return;
             }
-            var mm = mat4.create();
-
-            // lookAt -
-            // out, eye, center, up
-            // out = output matrix
-            // eye = position of the "camera", or eyes, while "looking at" the center
-            // center = the focal point, where we're looking
-            // up = the "vertical" up direction from the center
-            // var ex=0.25,ey=0.25,ez=1;
-            mm = mat4.lookAt(
-                mm,
-                vec3.fromValues(
-                    state.eye[PERSPECTIVE].x,
-                    state.eye[PERSPECTIVE].y,
-                    state.eye[PERSPECTIVE].z,
-                ),
-                vec3.fromValues(0, 0, 0),
-                vec3.fromValues(0, 1, 0),
-            );
-            var uViewMatrix = gl.getUniformLocation(program, "uViewMatrix");
-            gl.uniformMatrix4fv(uViewMatrix, false, mm);
 
             // Draw a line
             gl.drawArrays(gl.LINE_STRIP, 0, n);
@@ -331,6 +337,7 @@
     function assignColorToParticle(particle) {
         const nextColor = colorGenerator.next();
         state.colorPalette[particle] = nextColor.value;
+        if (!DISPLAY_STATS) return;
         const rgbColor = nextColor.value.map((v) => Math.round(v * 255));
         const colorBox = document.createElement("div");
         colorBox.style.backgroundColor = `rgba(${rgbColor.join(",")})`;
@@ -379,6 +386,8 @@
             marchingAmount,
             state.log.eventsPerSecond,
         );
+        if (!DISPLAY_STATS) return;
+
         counter.innerHTML = `${state.eventCount} events total : ${EPS} events/s`;
         counter.innerHTML += `<br>${state.trackCount} tracks total : ${TPS} tracks/s`;
         counter.innerHTML += `<br>${state.framesCount} frames total : ${FPS} frames/s`;
@@ -387,6 +396,13 @@
             (a, { cutAmount }) => a + cutAmount,
             0,
         )}`;
+        counter.innerHTML += `<br>Skiped frames: ${state.skippedFrames}`;
+        counter.innerHTML += `<br>Total render time: ${state.totalRenderTime}ms`;
+        counter.innerHTML += `<br>Total receive message time: ${state.totalReceiveMessageTime}ms`;
+        counter.innerHTML += `<br>Total parse trajectory time: ${state.totalParseTrajectoryTime}ms`;
+        counter.innerHTML += `<br>Total run time: ${
+            (state.endTime ?? currentTime) - state.log.startTime
+        }ms`;
     }
 
     function getDirection(x1, y1, z1, x2, y2, z2, x3, y3, z3) {
@@ -513,6 +529,7 @@
             });
             state.simulatedTrajectories[label][0] = trajectory;
         }
+        return newLabels;
     }
 
     function clearLogs() {
@@ -548,24 +565,46 @@
         logInterval = setInterval(logMetrics, 200);
         mainLoop();
     }
-
+    let renderTime = 0;
+    let lastDrawEndTime = 0;
     function mainLoop() {
         if (messageQueue.length > 0) {
-            state.framesCount++;
             // handle message queue
-            while (
-                // Date.now() - startTime < 500 / 60 &&
-                messageQueue.length > 0
-            )
-                handleMessage(messageQueue.shift());
-
-            // draw the trajectories
-            draw(Object.values(state.simulatedTrajectories));
+            const handleMessageStartTime = Date.now();
+            const trajectoriesToRender = [];
+            while (messageQueue.length > 0) {
+                trajectoriesToRender.push(
+                    ...handleMessage(messageQueue.shift()).keys(),
+                );
+            }
+            state.totalParseTrajectoryTime +=
+                Date.now() - handleMessageStartTime;
+            if (
+                // draw if the time since the last frame is greater than the render time
+                Date.now() - lastDrawEndTime + renderTime >=
+                1000 / TARGET_FPS
+            ) {
+                state.framesCount++;
+                // draw the trajectories
+                const drawStartTime = Date.now();
+                draw(
+                    false,
+                    Object.entries(state.simulatedTrajectories)
+                        .filter(([k, v]) => trajectoriesToRender.includes(k))
+                        .map(([k, v]) => v),
+                );
+                lastDrawEndTime = Date.now();
+                renderTime = lastDrawEndTime - drawStartTime;
+                state.totalRenderTime += renderTime;
+                //     // break handleLoop;
+            } else {
+                state.skippedFrames++;
+            }
         }
-
         if (state.log.endTime === undefined || messageQueue.length > 0)
             setTimeout(mainLoop);
         else {
+            draw();
             stopMainLoop();
         }
     }
@@ -626,6 +665,7 @@
                             ).length, // Get the length of the byte array, which is the byte size of the data
                         });
                         messageQueue.push(e.data.data);
+                        state.totalReceiveMessageTime += Date.now() - time;
                         if (!RUNNING_FLAG) startMainLoop();
                         break;
                     case "exit":
