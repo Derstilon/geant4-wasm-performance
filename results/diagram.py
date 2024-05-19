@@ -7,6 +7,7 @@ import matplotlib.patches as mpatches
 def load_data_from_files(directory):
     all_data = {}
     aspect_data = {}
+    metrics_data = {}
     dir_list = sorted([d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))])
     for dir_name in dir_list:
         dir_path = os.path.join(directory, dir_name)
@@ -40,7 +41,18 @@ def load_data_from_files(directory):
                                     'timeStart': entry['timeStart'],
                                     'timeEnd': entry['timeEnd']
                                 })
-    return all_data, aspect_data
+
+                        # Collect metrics data
+                        if test_case_label not in metrics_data:
+                            metrics_data[test_case_label] = []
+                        metrics_data[test_case_label].append({
+                            'problemSize': problem_size,
+                            'framesPerSecond': data['log']['framesPerSecond'],
+                            'messagesPerSecond': data['log']['messagesPerSecond'],
+                            'eventsPerSecond': data['log']['eventsPerSecond'],
+                            'tracksPerSecond': data['log']['tracksPerSecond']
+                        })
+    return all_data, aspect_data, metrics_data
 
 def plot_durations(all_data):
     # Calculate the number of rows and columns for the subplots
@@ -151,16 +163,62 @@ def plot_aspects(aspect_data, test_case_label):
 
     plt.tight_layout()
     plt.show()
+    
+def plot_metrics_over_time(metrics_data):
+    metrics = ['framesPerSecond', 'messagesPerSecond', 'eventsPerSecond', 'tracksPerSecond']
+    metric_labels = ['Frames/s', 'Messages/s', 'Events/s', 'Tracks/s']
+    num_metrics = len(metrics)
+    cols = int(np.ceil(np.sqrt(num_metrics)))
+    rows = int(np.ceil(num_metrics / cols))
+
+    # Group data by problem size
+    problem_sizes = {}
+    for test_case_label, runs in metrics_data.items():
+        for run in runs:
+            problem_size = run['problemSize']
+            if problem_size not in problem_sizes:
+                problem_sizes[problem_size] = []
+            problem_sizes[problem_size].append((test_case_label, run))
+    
+    # Iterate over problem sizes
+    for problem_size, test_cases in sorted(problem_sizes.items(), key=lambda item: item[0]):
+        fig, axs = plt.subplots(rows, cols, figsize=(15, 7), squeeze=False)
+        axs = axs.flatten()
+
+        for i, metric in enumerate(metrics):
+            for test_case_label, run in test_cases:
+                if metric in run:
+                    times = [entry['time'] for entry in run[metric]]
+                    values = [entry['newValues'] for entry in run[metric]]
+
+                    # Normalize times to start at 0 and convert to seconds
+                    times = [(t - times[0]) / 1000 for t in times]
+
+                    axs[i].plot(times, values, label=f'{test_case_label}')
+
+            axs[i].set_xlabel('Time (s)')
+            axs[i].set_ylabel(metric_labels[i])
+            axs[i].set_title(f'{metric} Over Time for {problem_size} Events')
+            axs[i].legend()
+            axs[i].grid(True)
+
+        # Remove unused subplots
+        for i in range(num_metrics, rows*cols):
+            fig.delaxes(axs[i])
+
+        plt.tight_layout()
+        plt.show()
 
 # Directory containing JSON files
 directory = 'logs'
 
 # Load data from all files
-all_data, aspect_data = load_data_from_files(directory)
+all_data, aspect_data, metrics_data = load_data_from_files(directory)
 
-plot_durations(all_data)
-plot_percentage_difference(all_data)
-plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_2_256")
-plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_2_256")
-plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_200_256")
-plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_200_256")
+# plot_durations(all_data)
+# plot_percentage_difference(all_data)
+plot_metrics_over_time(metrics_data)
+# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_2_256")
+# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_2_256")
+# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_200_256")
+# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_200_256")
