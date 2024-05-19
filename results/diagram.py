@@ -3,11 +3,13 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patches as mpatches
+import pandas as pd
 
 def load_data_from_files(directory):
     all_data = {}
     aspect_data = {}
     metrics_data = {}
+    stacked_bar_data = []
     dir_list = sorted([d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))])
     for dir_name in dir_list:
         dir_path = os.path.join(directory, dir_name)
@@ -18,11 +20,12 @@ def load_data_from_files(directory):
                     data = json.load(f)
                     if 'config' in data:
                         config = data['config']
+                        log = data['log']
                         problem_size = config['scheduledEvents']
                         test_case_label = f"{config['beamParticle']}_{config['renderMode']}_{config.get('messageDensity', '')}_{config.get('trajectoryOptimization', '')}_{config.get('binNumber', '')}"
-                        start_time = data['log']['startTime']
-                        end_time = data['log']['endTime']
-                        render_end_time = data['log']['renderEndTime']
+                        start_time = log['startTime']
+                        end_time = log['endTime']
+                        render_end_time = log['renderEndTime']
                         simulation_duration = end_time - start_time
                         rendering_duration = render_end_time - start_time
                         if test_case_label not in all_data:
@@ -35,7 +38,7 @@ def load_data_from_files(directory):
 
                         # Collect aspect data
                         for key in ['messages', 'optimizations', 'renders', 'handles']:
-                            for entry in data['log'][key]:
+                            for entry in log[key]:
                                 aspect_data[aspect_label].append({
                                     'aspect': key,
                                     'timeStart': entry['timeStart'],
@@ -47,12 +50,24 @@ def load_data_from_files(directory):
                             metrics_data[test_case_label] = []
                         metrics_data[test_case_label].append({
                             'problemSize': problem_size,
-                            'framesPerSecond': data['log']['framesPerSecond'],
-                            'messagesPerSecond': data['log']['messagesPerSecond'],
-                            'eventsPerSecond': data['log']['eventsPerSecond'],
-                            'tracksPerSecond': data['log']['tracksPerSecond']
+                            'framesPerSecond': log['framesPerSecond'],
+                            'messagesPerSecond': log['messagesPerSecond'],
+                            'eventsPerSecond': log['eventsPerSecond'],
+                            'tracksPerSecond': log['tracksPerSecond']
                         })
-    return all_data, aspect_data, metrics_data
+                        
+                        total_optimization_time = sum(entry['timeEnd'] - entry['timeStart'] for entry in log['optimizations'])
+                        total_render_time = sum(entry['timeEnd'] - entry['timeStart'] for entry in log['renders'])
+                        total_handle_time = sum(entry['timeEnd'] - entry['timeStart'] for entry in log['handles'])
+
+                        stacked_bar_data.append({
+                            'Config': test_case_label,
+                            'Optimization Time': total_optimization_time,
+                            'Render Time': total_render_time,
+                            'Handle Time': total_handle_time,
+                            'problemSize': problem_size,
+                        })
+    return all_data, aspect_data, metrics_data, stacked_bar_data
 
 def plot_durations(all_data):
     # Calculate the number of rows and columns for the subplots
@@ -209,15 +224,51 @@ def plot_metrics_over_time(metrics_data):
         plt.tight_layout()
         plt.show()
 
+def plot_stacked_bar_chart(stacked_bar_data):
+    # Group data by problem size
+    grouped_data = {}
+    for data in stacked_bar_data:
+        problem_size = data['problemSize']
+        if problem_size not in grouped_data:
+            grouped_data[problem_size] = []
+        grouped_data[problem_size].append(data)
+
+    # Calculate the number of rows and columns for the subplots
+    num_problem_sizes = len(grouped_data)
+    cols = int(np.ceil(np.sqrt(num_problem_sizes)))
+    rows = int(np.ceil(num_problem_sizes / cols))
+
+    fig, axs = plt.subplots(rows, cols, figsize=(15, 7))
+    axs = axs.flatten()  # Flatten the array of axes to make it easier to iterate over
+
+    for i, (problem_size, data) in enumerate(sorted(grouped_data.items(), key=lambda item: item[0])):
+        df = pd.DataFrame(data)
+        df.set_index('Config', inplace=True)
+        df.plot(kind='bar', stacked=True, ax=axs[i])
+
+        axs[i].set_title(f'Stacked Bar Chart of Time Distribution for Problem Size {problem_size}')
+        axs[i].set_xlabel('Configurations')
+        axs[i].set_ylabel('Time (ms)')
+        axs[i].set_xticklabels(df.index, rotation=45, ha='right')
+        axs[i].legend(title='Time Spent on')
+
+    # Remove unused subplots
+    for i in range(num_problem_sizes, rows*cols):
+        fig.delaxes(axs[i])
+
+    plt.tight_layout()
+    plt.show()
+
 # Directory containing JSON files
 directory = 'logs'
 
 # Load data from all files
-all_data, aspect_data, metrics_data = load_data_from_files(directory)
+all_data, aspect_data, metrics_data, stacked_bar_data = load_data_from_files(directory)
 
 # plot_durations(all_data)
 # plot_percentage_difference(all_data)
-plot_metrics_over_time(metrics_data)
+plot_stacked_bar_chart(stacked_bar_data)
+# plot_metrics_over_time(metrics_data)
 # plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_2_256")
 # plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_2_256")
 # plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_200_256")
