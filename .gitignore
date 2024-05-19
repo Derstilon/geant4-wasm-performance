@@ -4,4 +4,6 @@
 /emsdk
 /geant4
 .vscode/settings.json
-results
+results/logs
+results/env
+results/__pycache__

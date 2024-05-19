@@ -36,6 +36,10 @@
                 padding: 10px;
             }
             #stats-paragraph {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+            #stats-paragraph > div {
                 padding: 10px;
             }
             #perspective-header > * {
@@ -64,11 +68,13 @@
                 <button id="perspective-4">XZ</button>
                 <button id="perspective-5">YZ</button>
             </div>
-            <p id="stats-paragraph">
-                Statistics: <br /><span id="events-count"></span><br />Color
-                coding:<br />
-                <span id="particle-colors"></span>
-            </p>
+            <div id="stats-paragraph">
+                <div>Statistics: <br /><span id="events-count"></span></div>
+                <div>
+                    Color coding:<br />
+                    <span id="particle-colors"></span>
+                </div>
+            </div>
         </div>
 
         <!-- Shaders -->

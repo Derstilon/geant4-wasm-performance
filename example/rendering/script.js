@@ -1,14 +1,17 @@
 // @ts-nocheck
 (function (global) {
     // CONFIG VARIABLES
-    let RENDER_THRESHOLD = 0.01,
-        EVENT_COUNT = 1000,
-        BEAM = 1,
+    let RENDER_THRESHOLD = 0.005,
+        ANGLE_THRESHOLD = 0.00005,
+        EVENT_COUNT = 16,
         RUNNING_FLAG = false,
         PERSPECTIVE = 0,
-        TARGET_FPS = 90,
-        DISPLAY_STATS = true,
-        RENDER_ONLY_NEW = true;
+        TARGET_FPS = 60,
+        DISPLAY_STATS = false,
+        BEAM = 1,
+        RENDER_ONLY_NEW = true,
+        OPTIMIZE_TRAJECTORIES = false,
+        DETECT_BIN_AMOUNT = 2;
 
     // GLOBAL VARIABLES
     let runButton,
@@ -126,7 +129,6 @@
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         draw();
     }
-
     let state = {
         eye: [
             {
@@ -158,23 +160,26 @@
         simulatedTrajectories: {},
         colorPalette: {},
         particleCounter: {},
-        eventCount: 0,
         skippedFrames: 0,
         totalRenderTime: 0,
-        totalReceiveMessageTime: 0,
         totalParseTrajectoryTime: 0,
+        totalMessageWaitTime: 0,
+        totalMessageSize: 0,
+        eventCount: 0,
         trackCount: 0,
         framesCount: 0,
-        messageAmount: 0,
+        messageCount: 0,
         log: {
-            messages: new Array(),
-            optimizations: new Array(),
-            renders: new Array(),
-            framesPerSecond: new Array(),
-            messagesPerSecond: new Array(),
-            eventsPerSecond: new Array(),
-            tracksPerSecond: new Array(),
+            messages: [],
+            optimizations: [],
+            renders: [],
+            handles: [],
+            framesPerSecond: [],
+            messagesPerSecond: [],
+            eventsPerSecond: [],
+            tracksPerSecond: [],
         },
+        config: {},
     };
 
     const encoder = new TextEncoder(); // TextEncoder is part of the Encoding API and encodes a string into bytes using UTF-8
@@ -408,43 +413,31 @@
             marchingAmount,
             state.log.eventsPerSecond,
         );
+        const MPS = updateMetric(
+            currentTime,
+            state.messageCount,
+            marchingAmount,
+            state.log.messagesPerSecond,
+        );
         if (!DISPLAY_STATS) return;
 
         counter.innerHTML = `${state.eventCount} events total : ${EPS} events/s`;
         counter.innerHTML += `<br>${state.trackCount} tracks total : ${TPS} tracks/s`;
         counter.innerHTML += `<br>${state.framesCount} frames total : ${FPS} frames/s`;
+        counter.innerHTML += `<br>${state.messageCount} messages total : ${MPS} messages/s`;
         counter.innerHTML += `<br>Optimizations: ${state.log.optimizations.length}`;
         counter.innerHTML += `<br>Removed line sections: ${state.log.optimizations.reduce(
             (a, { cutAmount }) => a + cutAmount,
             0,
         )}`;
-        counter.innerHTML += `<br>Skiped frames: ${state.skippedFrames}`;
+        counter.innerHTML += `<br>Skipped frames: ${state.skippedFrames}`;
         counter.innerHTML += `<br>Total render time: ${state.totalRenderTime}ms`;
-        counter.innerHTML += `<br>Total receive message time: ${state.totalReceiveMessageTime}ms`;
         counter.innerHTML += `<br>Total parse trajectory time: ${state.totalParseTrajectoryTime}ms`;
+        counter.innerHTML += `<br>Total message wait time: ${state.totalMessageWaitTime}ms`;
+        counter.innerHTML += `<br>Total message size: ${state.totalMessageSize} bytes`;
         counter.innerHTML += `<br>Total run time: ${
-            (state.endTime ?? currentTime) - state.log.startTime
+            (state.log.endTime ?? currentTime) - state.log.startTime
         }ms`;
-    }
-
-    function getDirection(x1, y1, z1, x2, y2, z2, x3, y3, z3) {
-        const vector1 = [x2 - x1, y2 - y1, z2 - z1];
-        const vector2 = [x3 - x2, y3 - y2, z3 - z2];
-
-        const crossProduct = [
-            vector1[1] * vector2[2] - vector1[2] * vector2[1],
-            vector1[2] * vector2[0] - vector1[0] * vector2[2],
-            vector1[0] * vector2[1] - vector1[1] * vector2[0],
-        ];
-
-        const magnitude = Math.sqrt(
-            crossProduct[0] ** 2 + crossProduct[1] ** 2 + crossProduct[2] ** 2,
-        );
-        return crossProduct.map((component) => component / magnitude);
-    }
-
-    function getDistance(x1, y1, z1, x2, y2, z2) {
-        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2);
     }
 
     function shouldBeRendered(points) {
@@ -457,29 +450,55 @@
         return distance > RENDER_THRESHOLD;
     }
 
+    function getDistance(x1, y1, z1, x2, y2, z2) {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2);
+    }
+
+    function getPerpendicularDistance(x1, y1, z1, x2, y2, z2, x, y, z) {
+        const lineVec = [x2 - x1, y2 - y1, z2 - z1];
+        const pointVec = [x - x1, y - y1, z - z1];
+        const lineLen = Math.sqrt(
+            lineVec[0] ** 2 + lineVec[1] ** 2 + lineVec[2] ** 2,
+        );
+        const dotProduct =
+            pointVec[0] * lineVec[0] +
+            pointVec[1] * lineVec[1] +
+            pointVec[2] * lineVec[2];
+        const projLen = dotProduct / lineLen;
+        const projVec = [
+            (lineVec[0] * projLen) / lineLen,
+            (lineVec[1] * projLen) / lineLen,
+            (lineVec[2] * projLen) / lineLen,
+        ];
+        const perpVec = [
+            pointVec[0] - projVec[0],
+            pointVec[1] - projVec[1],
+            pointVec[2] - projVec[2],
+        ];
+        return Math.sqrt(perpVec[0] ** 2 + perpVec[1] ** 2 + perpVec[2] ** 2);
+    }
+
     function optimizeTrajectories(points) {
         if (points.length < 9) return points; // Less than 3 points (9 coordinates)
 
         const optimized = [];
-        let lastDirection = null;
 
         optimized.push(points[0], points[1], points[2]); // Add the first point
 
         for (let i = 3; i < points.length - 3; i += 3) {
-            const direction = getDirection(
+            const distance = getPerpendicularDistance(
                 points[i - 3],
                 points[i - 2],
                 points[i - 1], // Previous point
-                points[i],
-                points[i + 1],
-                points[i + 2], // Current point
                 points[i + 3],
                 points[i + 4],
                 points[i + 5], // Next point
+                points[i],
+                points[i + 1],
+                points[i + 2], // Current point
             );
-            if (!direction.equals(lastDirection)) {
+            if (distance > ANGLE_THRESHOLD) {
                 optimized.push(points[i], points[i + 1], points[i + 2]);
-                lastDirection = direction;
             }
         }
 
@@ -488,18 +507,20 @@
             points[points.length - 2],
             points[points.length - 1],
         ); // Add the last point
+
         return optimized;
     }
 
-    Array.prototype.equals = function (array) {
+    Array.prototype.equals = function (array, threshold = 0) {
         if (!array || this.length !== array.length) return false;
         for (let i = 0; i < this.length; i++) {
-            if (this[i] !== array[i]) return false;
+            if (Math.abs(this[i] - array[i]) > threshold) return false;
         }
         return true;
     };
 
     function handleMessage(messageData) {
+        let timeStart = Date.now();
         let tracksPerEvent = 0;
         const newLabels = new Set();
         messageData.forEach((d) => {
@@ -518,8 +539,8 @@
                 tracksPerEvent = 0;
             }
 
+            newLabels.add(label);
             if (!(label in state.simulatedTrajectories)) {
-                newLabels.add(label);
                 // Generate a new color if this particle is not in the color_palette
                 if (!(particle in state.colorPalette))
                     assignColorToParticle(particle);
@@ -528,47 +549,113 @@
             }
             state.simulatedTrajectories[label][0].push(...position);
         });
-        for (let label of newLabels) {
-            const timeStart = Date.now();
-            let trajectory = state.simulatedTrajectories[label][0];
-            let cutAmount = trajectory.length;
-            const particle = state.simulatedTrajectories[label][1];
-            if (shouldBeRendered(trajectory)) {
-                let optimized = optimizeTrajectories(trajectory);
-                cutAmount -= optimized.length;
-                trajectory = optimized;
-                state.particleCounter[particle] ??= 0;
-                state.particleCounter[particle]++;
-            } else {
-                trajectory = [];
+        const timeEnd = Date.now();
+        state.log.handles.push({
+            timeStart: timeStart,
+            timeEnd,
+            coordAmount: messageData.length,
+            newLabels: newLabels.size,
+        });
+        if (OPTIMIZE_TRAJECTORIES) {
+            timeStart = Date.now();
+            for (let label of newLabels) {
+                let trajectory = state.simulatedTrajectories[label][0];
+                let cutAmount = trajectory.length;
+                const particle = state.simulatedTrajectories[label][1];
+                if (shouldBeRendered(trajectory)) {
+                    let optimized = optimizeTrajectories(trajectory);
+                    cutAmount -= optimized.length;
+                    trajectory = optimized;
+                    state.particleCounter[particle] ??= 0;
+                    state.particleCounter[particle]++;
+                } else {
+                    cutAmount = trajectory.length;
+                    trajectory = [];
+                }
+                let timeEnd = Date.now();
+                if (cutAmount > 0)
+                    state.log.optimizations.push({
+                        timeEnd,
+                        timeStart,
+                        cutAmount,
+                        particle,
+                    });
+                state.simulatedTrajectories[label][0] = trajectory;
             }
-            const timeEnd = Date.now();
-            state.log.optimizations.push({
-                timeEnd,
-                timeStart,
-                cutAmount,
-                particle,
-            });
-            state.simulatedTrajectories[label][0] = trajectory;
         }
+
         return newLabels;
     }
 
     function clearLogs() {
-        state.simulatedTrajectories = {};
-        state.colorPalette = {};
-        state.particleCounter = {};
-        state.eventCount = 0;
-        state.trackCount = 0;
-        state.framesCount = 0;
-        state.log.messages = new Array();
-        state.log.optimizations = new Array();
-        state.log.framesPerSecond = new Array();
-        state.log.eventsPerSecond = new Array();
-        state.log.tracksPerSecond = new Array();
+        const defaultState = {
+            eye: [
+                {
+                    x: 360,
+                    y: 30,
+                    z: 110,
+                },
+                {
+                    x: 660,
+                    y: 180,
+                    z: 410,
+                },
+                {
+                    x: 0,
+                    y: 0,
+                    z: 500,
+                },
+                {
+                    x: 0.1,
+                    y: 450,
+                    z: -0.1,
+                },
+                {
+                    x: 500,
+                    y: 0,
+                    z: 0,
+                },
+            ],
+            simulatedTrajectories: {},
+            colorPalette: {},
+            particleCounter: {},
+            skippedFrames: 0,
+            totalRenderTime: 0,
+            totalParseTrajectoryTime: 0,
+            totalMessageWaitTime: 0,
+            totalMessageSize: 0,
+            eventCount: 0,
+            trackCount: 0,
+            framesCount: 0,
+            messageCount: 0,
+            log: {
+                startTime: state.log.startTime,
+                messages: [],
+                optimizations: [],
+                renders: [],
+                handles: [],
+                framesPerSecond: [],
+                messagesPerSecond: [],
+                eventsPerSecond: [],
+                tracksPerSecond: [],
+            },
+            config: {
+                beamParticle: state.config.beamParticle,
+                beamEnergy: state.config.beamEnergy,
+                renderThreshold: state.config.renderThreshold,
+                angleThreshold: state.config.angleThreshold,
+                scheduledEvents: state.config.scheduledEvents,
+                renderMode: state.config.renderMode,
+                messageDensity: state.config.messageDensity,
+                trajectoryOptimization: state.config.trajectoryOptimization,
+                binNumber: state.config.binNumber,
+            },
+        };
+        state = { ...defaultState };
     }
 
     function stopMainLoop() {
+        state.log.renderEndTime = Date.now();
         RUNNING_FLAG = false;
         runButton.innerHTML = "Done!";
         clearInterval(logInterval);
@@ -585,11 +672,11 @@
         clearInterval(logInterval);
         setTimeout(logMetrics);
         logInterval = setInterval(logMetrics, 200);
-        mainLoop();
+        mainLoop(true);
     }
     let renderTime = 0;
     let lastDrawEndTime = 0;
-    function mainLoop() {
+    function mainLoop(firstLoop = false) {
         if (messageQueue.length > 0) {
             // handle message queue
             const handleMessageStartTime = Date.now();
@@ -598,6 +685,7 @@
                 trajectoriesToRender.push(
                     ...handleMessage(messageQueue.shift()).keys(),
                 );
+                if (firstLoop) break;
             }
             state.totalParseTrajectoryTime +=
                 Date.now() - handleMessageStartTime;
@@ -622,26 +710,20 @@
                 lastDrawEndTime = Date.now();
                 renderTime = lastDrawEndTime - drawStartTime;
                 state.totalRenderTime += renderTime;
-                if (RENDER_ONLY_NEW)
-                    state.log.renders.push({
-                        renderTime,
-                        //count all particle occurrences in trajectoriesToRender
-                        renderedParticles: trajectoriesToRender.reduce(
-                            (acc, curr) => {
-                                const particle =
-                                    state.simulatedTrajectories[curr][1];
-                                acc[particle] ??= 0;
-                                acc[particle]++;
-                                return acc;
-                            },
-                            {},
-                        ),
-                    });
-                else
-                    state.log.renders.push({
-                        renderTime,
-                        renderedParticles: state.particleCounter,
-                    });
+                state.log.renders.push({
+                    timeStart: drawStartTime,
+                    timeEnd: lastDrawEndTime,
+                    renderedParticles: RENDER_ONLY_NEW
+                        ? //count all particle occurrences in trajectoriesToRender
+                          trajectoriesToRender.reduce((acc, curr) => {
+                              const particle =
+                                  state.simulatedTrajectories[curr][1];
+                              acc[particle] ??= 0;
+                              acc[particle]++;
+                              return acc;
+                          }, {})
+                        : state.particleCounter,
+                });
             } else {
                 state.skippedFrames++;
             }
@@ -655,24 +737,42 @@
     }
 
     function handleClick(event) {
-        state.log.startTime = Date.now();
         runButton.disabled = true;
+        state.log.startTime = Date.now();
         return new Promise((resolve) => {
             console.log(`Run simulation...`);
             console.log(`Waiting for runtime to be initialized...`);
             const worker = new Worker("worker.js");
 
             worker.onmessage = function (e) {
-                const time = Date.now();
+                const receiveTime = Date.now();
                 switch (e.data.type) {
                     case "event":
-                        clearLogs();
-                        colorGenerator = generateColor();
-                        colorsLegend.innerHTML = "";
-                        mainParticles.forEach((particle) =>
-                            assignColorToParticle(particle),
-                        );
                         if (e.data.data === "onRuntimeInitialized") {
+                            state.config.renderThreshold = RENDER_THRESHOLD;
+                            state.config.angleThreshold = ANGLE_THRESHOLD;
+                            state.config.scheduledEvents = EVENT_COUNT;
+                            state.config.beamParticle =
+                                particleOptions[BEAM][0] === "e+"
+                                    ? "electron"
+                                    : particleOptions[BEAM][0];
+                            state.config.binNumber = DETECT_BIN_AMOUNT;
+                            state.config.beamEnergy = particleOptions[BEAM][1];
+                            state.config.renderMode = RENDER_ONLY_NEW
+                                ? "new"
+                                : "all";
+                            state.config.messageDensity = "oneEvent";
+                            state.config.trajectoryOptimization =
+                                OPTIMIZE_TRAJECTORIES
+                                    ? "optimizationEnabled"
+                                    : "optimizationDisabled";
+                            clearLogs();
+                            draw();
+                            colorGenerator = generateColor();
+                            colorsLegend.innerHTML = "";
+                            mainParticles.forEach((particle) =>
+                                assignColorToParticle(particle),
+                            );
                             worker.postMessage(`
   /process/em/verbose 0
   /run/verbose 0
@@ -680,7 +780,7 @@
 
   /score/create/boxMesh boxMesh
   /score/mesh/boxSize 50. 50. 50. mm
-  /score/mesh/nBin 1 1 1
+  /score/mesh/nBin ${DETECT_BIN_AMOUNT} ${DETECT_BIN_AMOUNT} ${DETECT_BIN_AMOUNT}
   /score/quantity/energyDeposit eDep
 
   /score/close
@@ -699,22 +799,23 @@
 
   /run/beamOn ${EVENT_COUNT}
 `);
-                            state.simulatedEvents = EVENT_COUNT;
-                            state.renderThreshold = RENDER_THRESHOLD;
                             startMainLoop();
                         }
                         break;
                     case "render":
-                        state.messageAmount++;
-                        state.log.messages.push({
-                            sendTime: e.data.time ?? null,
-                            receiveTime: time,
-                            packageSize: encoder.encode(
-                                JSON.stringify(e.data.data),
-                            ).length, // Get the length of the byte array, which is the byte size of the data
-                        });
+                        const packageSize = encoder.encode(
+                            JSON.stringify(e.data.data),
+                        ).length; // Get the length of the byte array, which is the byte size of the data
+                        state.messageCount++;
                         messageQueue.push(e.data.data);
-                        state.totalReceiveMessageTime += Date.now() - time;
+                        state.totalMessageWaitTime +=
+                            receiveTime - e.data.time ?? 0;
+                        state.totalMessageSize += packageSize;
+                        state.log.messages.push({
+                            timeStart: e.data.time ?? null,
+                            timeEnd: receiveTime,
+                            packageSize,
+                        });
                         if (!RUNNING_FLAG) startMainLoop();
                         break;
                     case "exit":
@@ -736,7 +837,7 @@
     // Function to save JSON data as a file
     function saveLogFile(
         logData = state,
-        fileName = "log.json",
+        fileName = `log${state.config.scheduledEvents ?? ""}.json`,
         ignoredKeys = ["simulatedTrajectories", "eye", "colorPalette"],
     ) {
         const logDataCopy = JSON.parse(JSON.stringify(logData)); // Deep copy the log data
