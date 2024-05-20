@@ -3,17 +3,17 @@
     // CONFIG VARIABLES
     let RENDER_THRESHOLD = 0.005,
         ANGLE_THRESHOLD = 0.00005,
-        EVENT_COUNT = 16,
-        MAX_TEST_COUNT = 65_536,
+        EVENT_COUNT = 32_768,
+        MIN_TEST_EVENTS = 8, //8192 16_384  32_768,
         RUNNING_FLAG = false,
         TEST_RUNNING_FLAG = false,
         PERSPECTIVE = 0,
         TARGET_FPS = 60,
-        DISPLAY_STATS = false,
-        BEAM = 0,
-        RENDER_ONLY_NEW = true,
-        OPTIMIZE_TRAJECTORIES = false,
-        DETECT_BIN_AMOUNT = 10;
+        DISPLAY_STATS = true,
+        BEAM = 0, // 0 = proton, 1 = e+
+        RENDER_ONLY_NEW = false, //true = new, false = all
+        OPTIMIZE_TRAJECTORIES = true, // true = optimal, false = raw
+        DETECT_BIN_AMOUNT = 1e1; // 1e0, 1e1, 1e2, 1e3, 1e4, 1e5
 
     // GLOBAL VARIABLES
     let runButton,
@@ -392,8 +392,8 @@
 
     function updateMetric(time, total, marchingAmount, logs) {
         const elapsed =
-            time - (logs[-1]?.elapsed ?? state.log.startTime ?? time);
-        const newValues = total - (logs[-1]?.total ?? 0);
+            time - (logs.at(-1)?.elapsed ?? state.log.startTime ?? time);
+        const newValues = total - (logs.at(-1)?.total ?? 0);
         logs.push({ time, elapsed, total, newValues });
         return [
             logs.slice(-marchingAmount).reduce(
@@ -406,7 +406,7 @@
         ].map(({ data, time }) => Math.round((data / time) * 1000))[0];
     }
 
-    function logMetrics(marchingAmount = 10) {
+    function logMetrics(marchingAmount = 3) {
         const currentTime = Date.now();
         const FPS = updateMetric(
             currentTime,
@@ -661,16 +661,22 @@
                 renderMode: state.config.renderMode,
                 messageDensity: state.config.messageDensity,
                 trajectoryOptimization: state.config.trajectoryOptimization,
-                binNumber: state.config.binNumber,
+                binSizeCategory: state.config.binSizeCategory,
             },
         };
         state = { ...defaultState };
     }
     function continueTest() {
         saveButton.click();
-        EVENT_COUNT *= 2;
-        if (EVENT_COUNT > MAX_TEST_COUNT) TEST_RUNNING_FLAG = false;
-        else testButton.click();
+        EVENT_COUNT /= 2;
+        simulatedEventsRequest.value = EVENT_COUNT;
+
+        if (EVENT_COUNT < MIN_TEST_EVENTS) {
+            TEST_RUNNING_FLAG = false;
+            testButton.disabled = false;
+            return;
+        }
+        handleTest();
     }
 
     function stopMainLoop() {

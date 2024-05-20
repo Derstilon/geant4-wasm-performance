@@ -4,7 +4,7 @@
 arr1=('electron' 'proton')
 arr2=('all' 'new')
 arr3=('optimal' 'raw')
-arr4=('tiny(1e0)' 'small(1e1)' 'medium(1e2)' 'large(1e3)' 'huge(1e4)' 'giant(1e5)')
+arr4=('(1e0)tiny' '(1e1)small' '(1e2)medium' '(1e3)large' '(1e4)huge' '(1e5)giant')
 
 # create directories
 for i in "${arr1[@]}"; do
