@@ -22,7 +22,7 @@ def load_data_from_files(directory):
                         config = data['config']
                         log = data['log']
                         problem_size = config['scheduledEvents']
-                        test_case_label = f"{config['beamParticle']}_{config['renderMode']}_{config.get('messageDensity', '')}_{config.get('trajectoryOptimization', '')}_{config.get('binNumber', '')}"
+                        test_case_label = f"{config['beamParticle']}_{config['renderMode']}_{config.get('trajectoryOptimization', '')}_{config.get('binNumber', '')}"
                         start_time = log['startTime']
                         end_time = log['endTime']
                         render_end_time = log['renderEndTime']
@@ -265,11 +265,11 @@ directory = 'logs'
 # Load data from all files
 all_data, aspect_data, metrics_data, stacked_bar_data = load_data_from_files(directory)
 
-# plot_durations(all_data)
-# plot_percentage_difference(all_data)
+plot_durations(all_data)
+plot_percentage_difference(all_data)
 plot_stacked_bar_chart(stacked_bar_data)
-# plot_metrics_over_time(metrics_data)
-# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_2_256")
-# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_2_256")
-# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationDisabled_200_256")
-# plot_aspects(aspect_data, "electron_all_oneEvent_optimizationEnabled_200_256")
+plot_metrics_over_time(metrics_data)
+plot_aspects(aspect_data, "electron_all_optimizationDisabled_2_256")
+plot_aspects(aspect_data, "electron_all_optimizationEnabled_2_256")
+plot_aspects(aspect_data, "electron_all_optimizationDisabled_200_256")
+plot_aspects(aspect_data, "electron_all_optimizationEnabled_200_256")

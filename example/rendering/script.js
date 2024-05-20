@@ -4,17 +4,20 @@
     let RENDER_THRESHOLD = 0.005,
         ANGLE_THRESHOLD = 0.00005,
         EVENT_COUNT = 16,
+        MAX_TEST_COUNT = 65_536,
         RUNNING_FLAG = false,
+        TEST_RUNNING_FLAG = false,
         PERSPECTIVE = 0,
         TARGET_FPS = 60,
         DISPLAY_STATS = false,
-        BEAM = 1,
+        BEAM = 0,
         RENDER_ONLY_NEW = true,
         OPTIMIZE_TRAJECTORIES = false,
-        DETECT_BIN_AMOUNT = 2;
+        DETECT_BIN_AMOUNT = 10;
 
     // GLOBAL VARIABLES
     let runButton,
+        testButton,
         saveButton,
         canvas,
         perspectiveButtons,
@@ -55,10 +58,20 @@
         window.addEventListener("resize", resizer);
     }
 
+    function handleTest() {
+        TEST_RUNNING_FLAG = true;
+        testButton.disabled = true;
+        DISPLAY_STATS = false;
+        handleClick();
+    }
+
     // Initialize UI Elements
     function initializeUIElements() {
         runButton = document.querySelector("#run-btn");
         if (runButton) runButton.addEventListener("click", handleClick);
+
+        testButton = document.querySelector("#test-btn");
+        if (testButton) testButton.addEventListener("click", handleTest);
 
         saveButton = document.querySelector("#save-btn");
         if (saveButton)
@@ -653,6 +666,12 @@
         };
         state = { ...defaultState };
     }
+    function continueTest() {
+        saveButton.click();
+        EVENT_COUNT *= 2;
+        if (EVENT_COUNT > MAX_TEST_COUNT) TEST_RUNNING_FLAG = false;
+        else testButton.click();
+    }
 
     function stopMainLoop() {
         state.log.renderEndTime = Date.now();
@@ -663,6 +682,7 @@
         setTimeout(() => {
             runButton.innerHTML = "Run simulation";
             runButton.disabled = false;
+            if (TEST_RUNNING_FLAG) continueTest();
         }, 2000);
     }
 
@@ -736,6 +756,23 @@
         }
     }
 
+    function bimAmountCategory(amount) {
+        switch (true) {
+            case amount <= 1:
+                return "1e0";
+            case amount <= 10:
+                return "1e1";
+            case amount <= 100:
+                return "1e2";
+            case amount <= 1000:
+                return "1e3";
+            case amount <= 10000:
+                return "1e4";
+            default:
+                return "1e5";
+        }
+    }
+
     function handleClick(event) {
         runButton.disabled = true;
         state.log.startTime = Date.now();
@@ -756,16 +793,15 @@
                                 particleOptions[BEAM][0] === "e+"
                                     ? "electron"
                                     : particleOptions[BEAM][0];
-                            state.config.binNumber = DETECT_BIN_AMOUNT;
+                            state.config.binSizeCategory =
+                                bimAmountCategory(DETECT_BIN_AMOUNT);
                             state.config.beamEnergy = particleOptions[BEAM][1];
                             state.config.renderMode = RENDER_ONLY_NEW
                                 ? "new"
                                 : "all";
                             state.config.messageDensity = "oneEvent";
                             state.config.trajectoryOptimization =
-                                OPTIMIZE_TRAJECTORIES
-                                    ? "optimizationEnabled"
-                                    : "optimizationDisabled";
+                                OPTIMIZE_TRAJECTORIES ? "optimized" : "raw";
                             clearLogs();
                             draw();
                             colorGenerator = generateColor();
