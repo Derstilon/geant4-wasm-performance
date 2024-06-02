@@ -3,17 +3,17 @@
     // CONFIG VARIABLES
     let RENDER_THRESHOLD = 0.005,
         ANGLE_THRESHOLD = 0.00005,
-        EVENT_COUNT = 32_768,
-        MIN_TEST_EVENTS = 8, //8192 16_384  32_768,
+        EVENT_COUNT = 32_768, //4_096 8_192 16_384 32_768
+        MIN_TEST_EVENTS = 8,
         RUNNING_FLAG = false,
         TEST_RUNNING_FLAG = false,
         PERSPECTIVE = 0,
-        TARGET_FPS = 60,
+        TARGET_FPS = 24,
         DISPLAY_STATS = true,
         BEAM = 0, // 0 = proton, 1 = e+
-        RENDER_ONLY_NEW = false, //true = new, false = all
-        OPTIMIZE_TRAJECTORIES = true, // true = optimal, false = raw
-        DETECT_BIN_AMOUNT = 1e1; // 1e0, 1e1, 1e2, 1e3, 1e4, 1e5
+        RENDER_ONLY_NEW = true, //true = new, false = all
+        OPTIMIZE_TRAJECTORIES = false, // true = optimal, false = raw
+        DETECT_BIN_AMOUNT = 1e3; // 1e0, 1e1, 1e2, 1e3, 1e4, 1e5
 
     // GLOBAL VARIABLES
     let runButton,
@@ -183,14 +183,15 @@
         framesCount: 0,
         messageCount: 0,
         log: {
-            messages: [],
-            optimizations: [],
-            renders: [],
-            handles: [],
-            framesPerSecond: [],
-            messagesPerSecond: [],
-            eventsPerSecond: [],
-            tracksPerSecond: [],
+            messages: new Array(),
+            optimizations: new Array(),
+            renders: new Array(),
+            handles: new Array(),
+            framesPerSecond: new Array(),
+            messagesPerSecond: new Array(),
+            eventsPerSecond: new Array(),
+            tracksPerSecond: new Array(),
+            mainLoopLogs: new Array(),
         },
         config: {},
     };
@@ -392,21 +393,21 @@
 
     function updateMetric(time, total, marchingAmount, logs) {
         const elapsed =
-            time - (logs.at(-1)?.elapsed ?? state.log.startTime ?? time);
+            time - (logs.at(-1)?.time ?? state.log.startTime ?? time);
         const newValues = total - (logs.at(-1)?.total ?? 0);
         logs.push({ time, elapsed, total, newValues });
-        return [
-            logs.slice(-marchingAmount).reduce(
-                (a, { newValues: b, elapsed: c }) => ({
-                    data: a.data + b,
-                    time: a.time + c,
-                }),
-                { data: 0, time: 0 },
-            ),
-        ].map(({ data, time }) => Math.round((data / time) * 1000))[0];
+        const { data, duration } = logs.slice(-marchingAmount).reduce(
+            (a, { newValues: b, elapsed: c }) => {
+                a.data += b;
+                a.duration += c;
+                return a;
+            },
+            { data: 0, duration: 0 },
+        );
+        return Math.round((data * 10_000.0) / duration) / 10;
     }
 
-    function logMetrics(marchingAmount = 3) {
+    function logMetrics(marchingAmount = 50) {
         const currentTime = Date.now();
         const FPS = updateMetric(
             currentTime,
@@ -414,6 +415,7 @@
             marchingAmount,
             state.log.framesPerSecond,
         );
+        state.log.framesPerSecond.sl;
         const TPS = updateMetric(
             currentTime,
             state.trackCount,
@@ -435,9 +437,9 @@
         if (!DISPLAY_STATS) return;
 
         counter.innerHTML = `${state.eventCount} events total : ${EPS} events/s`;
+        counter.innerHTML += `<br>${state.messageCount} messages total : ${MPS} messages/s`;
         counter.innerHTML += `<br>${state.trackCount} tracks total : ${TPS} tracks/s`;
         counter.innerHTML += `<br>${state.framesCount} frames total : ${FPS} frames/s`;
-        counter.innerHTML += `<br>${state.messageCount} messages total : ${MPS} messages/s`;
         counter.innerHTML += `<br>Optimizations: ${state.log.optimizations.length}`;
         counter.innerHTML += `<br>Removed line sections: ${state.log.optimizations.reduce(
             (a, { cutAmount }) => a + cutAmount,
@@ -547,8 +549,8 @@
             const label = `${event}-${track}-${particle}`;
             state.eventCount = event + 1;
             if (track > tracksPerEvent) tracksPerEvent = track;
-            else {
-                state.trackCount += track + 1;
+            else if (track < tracksPerEvent) {
+                state.trackCount += tracksPerEvent + 1;
                 tracksPerEvent = 0;
             }
 
@@ -643,14 +645,15 @@
             messageCount: 0,
             log: {
                 startTime: state.log.startTime,
-                messages: [],
-                optimizations: [],
-                renders: [],
-                handles: [],
-                framesPerSecond: [],
-                messagesPerSecond: [],
-                eventsPerSecond: [],
-                tracksPerSecond: [],
+                messages: new Array(),
+                optimizations: new Array(),
+                renders: new Array(),
+                handles: new Array(),
+                framesPerSecond: new Array(),
+                messagesPerSecond: new Array(),
+                eventsPerSecond: new Array(),
+                tracksPerSecond: new Array(),
+                mainLoopLogs: new Array(),
             },
             config: {
                 beamParticle: state.config.beamParticle,
@@ -678,7 +681,6 @@
         }
         handleTest();
     }
-
     function stopMainLoop() {
         state.log.renderEndTime = Date.now();
         RUNNING_FLAG = false;
@@ -691,8 +693,23 @@
             if (TEST_RUNNING_FLAG) continueTest();
         }, 2000);
     }
-
-    function startMainLoop() {
+    let renderTime = 0;
+    let mainLoopId = -1;
+    let drawStartTime = 0;
+    let lastDrawEndTime = 0;
+    let handleMessageStartTime = 0;
+    let trajectoriesToRender = [];
+    let handledMessages = 0;
+    function startMainLoop(reset = false) {
+        if (reset) {
+            renderTime = 0;
+            mainLoopId = -1;
+            drawStartTime = 0;
+            lastDrawEndTime = 0;
+            handleMessageStartTime = 0;
+            trajectoriesToRender = [];
+            handledMessages = 0;
+        }
         RUNNING_FLAG = true;
         runButton.innerHTML = "Running...";
         clearInterval(logInterval);
@@ -700,13 +717,12 @@
         logInterval = setInterval(logMetrics, 200);
         mainLoop(true);
     }
-    let renderTime = 0;
-    let lastDrawEndTime = 0;
     function mainLoop(firstLoop = false) {
+        handleMessageStartTime = Date.now();
+        mainLoopId++;
         if (messageQueue.length > 0) {
             // handle message queue
-            const handleMessageStartTime = Date.now();
-            const trajectoriesToRender = [];
+            handledMessages += messageQueue.length;
             while (messageQueue.length > 0) {
                 trajectoriesToRender.push(
                     ...handleMessage(messageQueue.shift()).keys(),
@@ -722,7 +738,7 @@
             ) {
                 state.framesCount++;
                 // draw the trajectories
-                const drawStartTime = Date.now();
+                drawStartTime = Date.now();
                 if (RENDER_ONLY_NEW)
                     draw(
                         false,
@@ -750,10 +766,19 @@
                           }, {})
                         : state.particleCounter,
                 });
+                trajectoriesToRender = [];
             } else {
                 state.skippedFrames++;
             }
         }
+        state.log.mainLoopLogs.push({
+            id: mainLoopId,
+            timeStart: handleMessageStartTime,
+            timeMessages: drawStartTime,
+            timeEnd: Date.now(),
+            messages: handledMessages,
+        });
+
         if (state.log.endTime === undefined || messageQueue.length > 0)
             setTimeout(mainLoop);
         else {
@@ -833,7 +858,6 @@
   /run/verbose 0
   /control/verbose 0
 
-
   /gps/particle ${particleOptions[BEAM][0]}
   /gps/energy ${particleOptions[BEAM][1]}
   /gps/direction 0. 0. 1.
@@ -841,6 +865,12 @@
 
   /run/beamOn ${EVENT_COUNT}
 `);
+
+                            // /gps/pos/type Beam
+                            // /gps/pos/radius 0.5 cm
+                            // /gps/pos/sigma_x 0.5 cm
+                            // /gps/pos/sigma_y 0.5 cm
+                            // /gps/ang/type beam2d
                             startMainLoop();
                         }
                         break;
