@@ -73,7 +73,7 @@ const writeFile = (data) => {
     console.log(contents);
     Module.init();
     Module.run("example.in");
-    postMessage({ type: "exit", data: "done" });
+    postMessage({ type: "exit", data: Date.now() });
     Module.clear();
 };
 

@@ -3,17 +3,22 @@
     // CONFIG VARIABLES
     let RENDER_THRESHOLD = 0.005,
         ANGLE_THRESHOLD = 0.00005,
-        EVENT_COUNT = 32_768, //4_096 8_192 16_384 32_768
+        EVENT_COUNT = 32_768, //2_048 4_096 8_192 16_384 32_768 65_536
         MIN_TEST_EVENTS = 8,
         RUNNING_FLAG = false,
         TEST_RUNNING_FLAG = false,
         PERSPECTIVE = 0,
         TARGET_FPS = 24,
         DISPLAY_STATS = true,
-        BEAM = 0, // 0 = proton, 1 = e+
-        RENDER_ONLY_NEW = true, //true = new, false = all
-        OPTIMIZE_TRAJECTORIES = false, // true = optimal, false = raw
-        DETECT_BIN_AMOUNT = 1e3; // 1e0, 1e1, 1e2, 1e3, 1e4, 1e5
+        BEAM = "proton" /* 0 = proton, 1 = e+ */ === "proton" ? 0 : 1, //
+        RENDER_ONLY_NEW =
+            "new" /* true = new, false = all */ === "new" ? true : false,
+        OPTIMIZE_TRAJECTORIES =
+            "optimal" /* true = optimal, false = raw */ === "optimal"
+                ? true
+                : false,
+        DETECT_BIN_AMOUNT = 5e1, // 1e0, 5e0, 1e1, 5e1, 1e2, 5e2, 1e3
+        RENDERING_ENABLED = true;
 
     // GLOBAL VARIABLES
     let runButton,
@@ -61,7 +66,7 @@
     function handleTest() {
         TEST_RUNNING_FLAG = true;
         testButton.disabled = true;
-        DISPLAY_STATS = false;
+        // DISPLAY_STATS = false;
         handleClick();
     }
 
@@ -573,6 +578,7 @@
         });
         if (OPTIMIZE_TRAJECTORIES) {
             timeStart = Date.now();
+            let particles = [];
             for (let label of newLabels) {
                 let trajectory = state.simulatedTrajectories[label][0];
                 let cutAmount = trajectory.length;
@@ -587,18 +593,21 @@
                     cutAmount = trajectory.length;
                     trajectory = [];
                 }
-                let timeEnd = Date.now();
-                if (cutAmount > 0)
-                    state.log.optimizations.push({
-                        timeEnd,
-                        timeStart,
-                        cutAmount,
-                        particle,
-                    });
+                if (cutAmount > 0) particles.push([particle, cutAmount]);
                 state.simulatedTrajectories[label][0] = trajectory;
             }
+            state.log.optimizations.push({
+                timeEnd: Date.now(),
+                timeStart,
+                particles,
+            });
+        } else {
+            for (let label of newLabels) {
+                const particle = state.simulatedTrajectories[label][1];
+                state.particleCounter[particle] ??= 0;
+                state.particleCounter[particle]++;
+            }
         }
-
         return newLabels;
     }
 
@@ -645,6 +654,7 @@
             messageCount: 0,
             log: {
                 startTime: state.log.startTime,
+                endTime: undefined,
                 messages: new Array(),
                 optimizations: new Array(),
                 renders: new Array(),
@@ -670,7 +680,6 @@
         state = { ...defaultState };
     }
     function continueTest() {
-        saveButton.click();
         EVENT_COUNT /= 2;
         simulatedEventsRequest.value = EVENT_COUNT;
 
@@ -681,12 +690,14 @@
         }
         handleTest();
     }
-    function stopMainLoop() {
-        state.log.renderEndTime = Date.now();
+    function stopMainLoop(endTime = Date.now()) {
+        if (messageQueue.length > 0) startMainLoop();
+        state.log.renderEndTime = endTime;
         RUNNING_FLAG = false;
         runButton.innerHTML = "Done!";
         clearInterval(logInterval);
         logMetrics();
+        saveButton.click();
         setTimeout(() => {
             runButton.innerHTML = "Run simulation";
             runButton.disabled = false;
@@ -698,18 +709,20 @@
     let drawStartTime = 0;
     let lastDrawEndTime = 0;
     let handleMessageStartTime = 0;
+    let handleMessagesEndTime = 0;
     let trajectoriesToRender = [];
     let handledMessages = 0;
-    function startMainLoop(reset = false) {
-        if (reset) {
-            renderTime = 0;
-            mainLoopId = -1;
-            drawStartTime = 0;
-            lastDrawEndTime = 0;
-            handleMessageStartTime = 0;
-            trajectoriesToRender = [];
-            handledMessages = 0;
-        }
+    function resetVariables() {
+        renderTime = 0;
+        mainLoopId = -1;
+        drawStartTime = 0;
+        lastDrawEndTime = 0;
+        handleMessageStartTime = 0;
+        handleMessagesEndTime = 0;
+        trajectoriesToRender = [];
+        handledMessages = 0;
+    }
+    function startMainLoop() {
         RUNNING_FLAG = true;
         runButton.innerHTML = "Running...";
         clearInterval(logInterval);
@@ -729,8 +742,10 @@
                 );
                 if (firstLoop) break;
             }
+            handleMessagesEndTime = Date.now();
             state.totalParseTrajectoryTime +=
-                Date.now() - handleMessageStartTime;
+                handleMessagesEndTime - handleMessageStartTime;
+
             if (
                 // draw if the time since the last frame is greater than the render time
                 Date.now() - lastDrawEndTime + renderTime >=
@@ -770,37 +785,39 @@
             } else {
                 state.skippedFrames++;
             }
+        } else {
+            handleMessagesEndTime = Date.now();
         }
         state.log.mainLoopLogs.push({
             id: mainLoopId,
             timeStart: handleMessageStartTime,
-            timeMessages: drawStartTime,
+            timeMessages: handleMessagesEndTime,
             timeEnd: Date.now(),
             messages: handledMessages,
         });
 
-        if (state.log.endTime === undefined || messageQueue.length > 0)
+        if (state.log.endTime === undefined || messageQueue.length > 0) {
             setTimeout(mainLoop);
-        else {
+        } else {
             draw();
-            stopMainLoop();
+            setTimeout(stopMainLoop);
         }
     }
 
     function bimAmountCategory(amount) {
         switch (true) {
-            case amount <= 1:
-                return "1e0";
-            case amount <= 10:
-                return "1e1";
-            case amount <= 100:
-                return "1e2";
-            case amount <= 1000:
-                return "1e3";
-            case amount <= 10000:
-                return "1e4";
+            case amount < 10:
+                return `${parseInt(amount)}e0`;
+            case amount < 100:
+                return `${parseInt(amount / 10)}e1`;
+            case amount < 1000:
+                return `${parseInt(amount / 100)}e2`;
+            case amount < 10000:
+                return `${parseInt(amount / 1000)}e3`;
+            case amount < 100000:
+                return `${parseInt(amount / 10000)}e4`;
             default:
-                return "1e5";
+                return `${parseInt(amount / 100000)}e5`;
         }
     }
 
@@ -827,13 +844,16 @@
                             state.config.binSizeCategory =
                                 bimAmountCategory(DETECT_BIN_AMOUNT);
                             state.config.beamEnergy = particleOptions[BEAM][1];
-                            state.config.renderMode = RENDER_ONLY_NEW
-                                ? "new"
-                                : "all";
+                            state.config.renderMode = RENDERING_ENABLED
+                                ? RENDER_ONLY_NEW
+                                    ? "new"
+                                    : "all"
+                                : "none";
                             state.config.messageDensity = "oneEvent";
                             state.config.trajectoryOptimization =
                                 OPTIMIZE_TRAJECTORIES ? "optimized" : "raw";
                             clearLogs();
+                            resetVariables();
                             draw();
                             colorGenerator = generateColor();
                             colorsLegend.innerHTML = "";
@@ -860,21 +880,28 @@
 
   /gps/particle ${particleOptions[BEAM][0]}
   /gps/energy ${particleOptions[BEAM][1]}
-  /gps/direction 0. 0. 1.
-  /gps/position 0. 0. -2 cm
-
+  /gps/ang/rot1 0 1 0
+  /gps/ang/rot2 1 1 0
+  /gps/position 0. 0. -3. cm
+  /gps/pos/type Beam
+  /gps/pos/type Beam
+  /gps/pos/radius 0.1 cm
+  /gps/pos/sigma_x 0.1 cm
+  /gps/pos/sigma_y 0.1 cm
+  /gps/ang/type beam2d
   /run/beamOn ${EVENT_COUNT}
 `);
 
                             // /gps/pos/type Beam
-                            // /gps/pos/radius 0.5 cm
-                            // /gps/pos/sigma_x 0.5 cm
-                            // /gps/pos/sigma_y 0.5 cm
+                            // /gps/pos/radius 0.1 cm
+                            // /gps/pos/sigma_x 0.1 cm
+                            // /gps/pos/sigma_y 0.1 cm
                             // /gps/ang/type beam2d
-                            startMainLoop();
+                            if (RENDERING_ENABLED) startMainLoop();
                         }
                         break;
                     case "render":
+                        if (!RENDERING_ENABLED) break;
                         const packageSize = encoder.encode(
                             JSON.stringify(e.data.data),
                         ).length; // Get the length of the byte array, which is the byte size of the data
@@ -888,14 +915,10 @@
                             timeEnd: receiveTime,
                             packageSize,
                         });
-                        if (!RUNNING_FLAG) startMainLoop();
                         break;
                     case "exit":
-                        state.log.endTime = Date.now();
-                        console.log(state.log.eventsPerSecond);
-                        console.log(state.log.messages);
-                        console.log(messageQueue);
-                        console.log(state.log);
+                        state.log.endTime = e.data.data;
+                        if (!RENDERING_ENABLED) stopMainLoop(e.data.data);
                         break;
                     default:
                         // console.log(
