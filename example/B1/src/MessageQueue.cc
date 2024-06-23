@@ -64,7 +64,7 @@ std::vector<std::string> MessageQueue::Dump()
 				messages.push(message);
 			}
 			// TODO : Check SharedArrayBuffer for better performance
-			postMessage({type : "render", data : messages, time : Date.now()});
+			postMessage({type : "render", data : messages, time : performance.now()});
 		},
 		cstrings.data(), cstrings.size());
 #endif

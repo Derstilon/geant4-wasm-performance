@@ -3,21 +3,21 @@
     // CONFIG VARIABLES
     let RENDER_THRESHOLD = 0.005,
         ANGLE_THRESHOLD = 0.00005,
-        EVENT_COUNT = 32_768, //2_048 4_096 8_192 16_384 32_768 65_536
-        MIN_TEST_EVENTS = 8,
+        EVENT_COUNT = 2_048, //2_048 4_096 8_192 16_384 32_768 65_536
+        MIN_TEST_EVENTS = 2_048, //8 16 32 64 128 256 512 1_024
         RUNNING_FLAG = false,
         TEST_RUNNING_FLAG = false,
         PERSPECTIVE = 0,
         TARGET_FPS = 24,
         DISPLAY_STATS = true,
-        BEAM = "proton" /* 0 = proton, 1 = e+ */ === "proton" ? 0 : 1, //
+        BEAM = "electron" /* 0 = proton, 1 = e+ */ === "proton" ? 0 : 1, //
         RENDER_ONLY_NEW =
             "new" /* true = new, false = all */ === "new" ? true : false,
         OPTIMIZE_TRAJECTORIES =
-            "optimal" /* true = optimal, false = raw */ === "optimal"
+            "raw" /* true = optimal, false = raw */ === "optimal"
                 ? true
                 : false,
-        DETECT_BIN_AMOUNT = 5e1, // 1e0, 5e0, 1e1, 5e1, 1e2, 5e2, 1e3
+        DETECT_BIN_AMOUNT = 1e3, // 1e0, 5e0, 1e1, 5e1, 1e2, 5e2, 1e3
         RENDERING_ENABLED = true;
 
     // GLOBAL VARIABLES
@@ -32,7 +32,8 @@
         colorsLegend,
         inputRenderThreshold,
         simulatedEventsRequest,
-        logInterval;
+        logInterval,
+        timeOriginDifference;
 
     const particleOptions = [
         ["proton", "60 MeV"],
@@ -66,7 +67,7 @@
     function handleTest() {
         TEST_RUNNING_FLAG = true;
         testButton.disabled = true;
-        // DISPLAY_STATS = false;
+        DISPLAY_STATS = false;
         handleClick();
     }
 
@@ -413,7 +414,7 @@
     }
 
     function logMetrics(marchingAmount = 50) {
-        const currentTime = Date.now();
+        const currentTime = performance.now();
         const FPS = updateMetric(
             currentTime,
             state.framesCount,
@@ -451,13 +452,19 @@
             0,
         )}`;
         counter.innerHTML += `<br>Skipped frames: ${state.skippedFrames}`;
-        counter.innerHTML += `<br>Total render time: ${state.totalRenderTime}ms`;
-        counter.innerHTML += `<br>Total parse trajectory time: ${state.totalParseTrajectoryTime}ms`;
-        counter.innerHTML += `<br>Total message wait time: ${state.totalMessageWaitTime}ms`;
+        counter.innerHTML += `<br>Total render time: ${Math.round(
+            state.totalRenderTime,
+        )}ms`;
+        counter.innerHTML += `<br>Total parse trajectory time: ${Math.round(
+            state.totalParseTrajectoryTime,
+        )}ms`;
+        counter.innerHTML += `<br>Total message wait time: ${Math.round(
+            state.totalMessageWaitTime,
+        )}ms`;
         counter.innerHTML += `<br>Total message size: ${state.totalMessageSize} bytes`;
-        counter.innerHTML += `<br>Total run time: ${
-            (state.log.endTime ?? currentTime) - state.log.startTime
-        }ms`;
+        counter.innerHTML += `<br>Total run time: ${Math.round(
+            (state.log.endTime ?? currentTime) - state.log.startTime,
+        )}ms`;
     }
 
     function shouldBeRendered(points) {
@@ -540,7 +547,7 @@
     };
 
     function handleMessage(messageData) {
-        let timeStart = Date.now();
+        let timeStart = performance.now();
         let tracksPerEvent = 0;
         const newLabels = new Set();
         messageData.forEach((d) => {
@@ -569,7 +576,7 @@
             }
             state.simulatedTrajectories[label][0].push(...position);
         });
-        const timeEnd = Date.now();
+        const timeEnd = performance.now();
         state.log.handles.push({
             timeStart: timeStart,
             timeEnd,
@@ -577,7 +584,7 @@
             newLabels: newLabels.size,
         });
         if (OPTIMIZE_TRAJECTORIES) {
-            timeStart = Date.now();
+            timeStart = performance.now();
             let particles = [];
             for (let label of newLabels) {
                 let trajectory = state.simulatedTrajectories[label][0];
@@ -597,7 +604,7 @@
                 state.simulatedTrajectories[label][0] = trajectory;
             }
             state.log.optimizations.push({
-                timeEnd: Date.now(),
+                timeEnd: performance.now(),
                 timeStart,
                 particles,
             });
@@ -690,7 +697,7 @@
         }
         handleTest();
     }
-    function stopMainLoop(endTime = Date.now()) {
+    function stopMainLoop(endTime = performance.now()) {
         if (messageQueue.length > 0) startMainLoop();
         state.log.renderEndTime = endTime;
         RUNNING_FLAG = false;
@@ -731,7 +738,7 @@
         mainLoop(true);
     }
     function mainLoop(firstLoop = false) {
-        handleMessageStartTime = Date.now();
+        handleMessageStartTime = performance.now();
         mainLoopId++;
         if (messageQueue.length > 0) {
             // handle message queue
@@ -742,18 +749,18 @@
                 );
                 if (firstLoop) break;
             }
-            handleMessagesEndTime = Date.now();
+            handleMessagesEndTime = performance.now();
             state.totalParseTrajectoryTime +=
                 handleMessagesEndTime - handleMessageStartTime;
 
             if (
                 // draw if the time since the last frame is greater than the render time
-                Date.now() - lastDrawEndTime + renderTime >=
+                performance.now() - lastDrawEndTime + renderTime >=
                 1000 / TARGET_FPS
             ) {
                 state.framesCount++;
                 // draw the trajectories
-                drawStartTime = Date.now();
+                drawStartTime = performance.now();
                 if (RENDER_ONLY_NEW)
                     draw(
                         false,
@@ -764,7 +771,7 @@
                             .map(([k, v]) => v),
                     );
                 else draw();
-                lastDrawEndTime = Date.now();
+                lastDrawEndTime = performance.now();
                 renderTime = lastDrawEndTime - drawStartTime;
                 state.totalRenderTime += renderTime;
                 state.log.renders.push({
@@ -786,13 +793,13 @@
                 state.skippedFrames++;
             }
         } else {
-            handleMessagesEndTime = Date.now();
+            handleMessagesEndTime = performance.now();
         }
         state.log.mainLoopLogs.push({
             id: mainLoopId,
             timeStart: handleMessageStartTime,
             timeMessages: handleMessagesEndTime,
-            timeEnd: Date.now(),
+            timeEnd: performance.now(),
             messages: handledMessages,
         });
 
@@ -823,17 +830,27 @@
 
     function handleClick(event) {
         runButton.disabled = true;
-        state.log.startTime = Date.now();
+        state.log.startTime = performance.now();
         return new Promise((resolve) => {
             console.log(`Run simulation...`);
             console.log(`Waiting for runtime to be initialized...`);
             const worker = new Worker("worker.js");
 
-            worker.onmessage = function (e) {
-                const receiveTime = Date.now();
-                switch (e.data.type) {
+            worker.onmessage = function ({
+                data: {
+                    type: messageType,
+                    data: messageData,
+                    time: messageTimestamp,
+                },
+            }) {
+                const receiveTimestamp = performance.now();
+                switch (messageType) {
+                    case "timeOrigin":
+                        timeOriginDifference =
+                            messageData - performance.timeOrigin;
+                        break;
                     case "event":
-                        if (e.data.data === "onRuntimeInitialized") {
+                        if (messageData === "onRuntimeInitialized") {
                             state.config.renderThreshold = RENDER_THRESHOLD;
                             state.config.angleThreshold = ANGLE_THRESHOLD;
                             state.config.scheduledEvents = EVENT_COUNT;
@@ -860,37 +877,39 @@
                             mainParticles.forEach((particle) =>
                                 assignColorToParticle(particle),
                             );
-                            worker.postMessage(`
-  /process/em/verbose 0
-  /run/verbose 0
-  /control/verbose 0
-
-  /score/create/boxMesh boxMesh
-  /score/mesh/boxSize 50. 50. 50. mm
-  /score/mesh/nBin ${DETECT_BIN_AMOUNT} ${DETECT_BIN_AMOUNT} ${DETECT_BIN_AMOUNT}
-  /score/quantity/energyDeposit eDep
-
-  /score/close
-
-  /run/initialize
-
-  /process/em/verbose 0
-  /run/verbose 0
-  /control/verbose 0
-
-  /gps/particle ${particleOptions[BEAM][0]}
-  /gps/energy ${particleOptions[BEAM][1]}
-  /gps/ang/rot1 0 1 0
-  /gps/ang/rot2 1 1 0
-  /gps/position 0. 0. -3. cm
-  /gps/pos/type Beam
-  /gps/pos/type Beam
-  /gps/pos/radius 0.1 cm
-  /gps/pos/sigma_x 0.1 cm
-  /gps/pos/sigma_y 0.1 cm
-  /gps/ang/type beam2d
-  /run/beamOn ${EVENT_COUNT}
-`);
+                            worker.postMessage(
+                                [
+                                    `/process/em/verbose 0`,
+                                    `/run/verbose 0`,
+                                    `/control/verbose 0`,
+                                    ``,
+                                    `/score/create/boxMesh boxMesh`,
+                                    `/score/mesh/boxSize 50. 50. 50. mm`,
+                                    `/score/mesh/nBin ${DETECT_BIN_AMOUNT} ${DETECT_BIN_AMOUNT} ${DETECT_BIN_AMOUNT}`,
+                                    `/score/quantity/energyDeposit eDep`,
+                                    ``,
+                                    `/score/close`,
+                                    ``,
+                                    `/run/initialize`,
+                                    ``,
+                                    `/process/em/verbose 0`,
+                                    `/run/verbose 0`,
+                                    `/control/verbose 0`,
+                                    ``,
+                                    `/gps/particle ${particleOptions[BEAM][0]}`,
+                                    `/gps/energy ${particleOptions[BEAM][1]}`,
+                                    `/gps/ang/rot1 0 1 0`,
+                                    `/gps/ang/rot2 1 1 0`,
+                                    `/gps/position 0. 0. -3. cm`,
+                                    `/gps/pos/type Beam`,
+                                    `/gps/pos/type Beam`,
+                                    `/gps/pos/radius 0.1 cm`,
+                                    `/gps/pos/sigma_x 0.1 cm`,
+                                    `/gps/pos/sigma_y 0.1 cm`,
+                                    `/gps/ang/type beam2d`,
+                                    `/run/beamOn ${EVENT_COUNT}`,
+                                ].join("\n"),
+                            );
 
                             // /gps/pos/type Beam
                             // /gps/pos/radius 0.1 cm
@@ -903,26 +922,38 @@
                     case "render":
                         if (!RENDERING_ENABLED) break;
                         const packageSize = encoder.encode(
-                            JSON.stringify(e.data.data),
+                            JSON.stringify(messageData),
                         ).length; // Get the length of the byte array, which is the byte size of the data
                         state.messageCount++;
-                        messageQueue.push(e.data.data);
+                        messageQueue.push(messageData);
+                        const workerTimestamp = messageTimestamp;
+
+                        // Adjust the worker's timestamp using the difference
+                        const adjustedWorkerTimestamp =
+                            workerTimestamp + timeOriginDifference;
+                        console.log({
+                            totalMessageWaitTime: state.totalMessageWaitTime,
+                            adjustedWorkerTimestamp,
+                            receiveTimestamp,
+                            workerTimestamp,
+                            timeOriginDifference,
+                        });
                         state.totalMessageWaitTime +=
-                            receiveTime - e.data.time ?? 0;
+                            receiveTimestamp - adjustedWorkerTimestamp ?? 0;
                         state.totalMessageSize += packageSize;
                         state.log.messages.push({
-                            timeStart: e.data.time ?? null,
-                            timeEnd: receiveTime,
+                            timeStart: adjustedWorkerTimestamp ?? null,
+                            timeEnd: receiveTimestamp,
                             packageSize,
                         });
                         break;
                     case "exit":
-                        state.log.endTime = e.data.data;
-                        if (!RENDERING_ENABLED) stopMainLoop(e.data.data);
+                        state.log.endTime = messageTimestamp;
+                        if (!RENDERING_ENABLED) stopMainLoop(messageTimestamp);
                         break;
                     default:
                         // console.log(
-                        //     `Worker ${index}: ${e.data.type} ${e.data.data}`,
+                        //     `Worker ${index}: ${type} ${data}`,
                         // );
                         break;
                 }

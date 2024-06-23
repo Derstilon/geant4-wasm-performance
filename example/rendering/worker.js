@@ -28,11 +28,11 @@ var preModule = {
     })(),
 
     setStatus: function (text) {
+        let now = performance.now();
         if (!preModule.setStatus.last)
-            preModule.setStatus.last = { time: Date.now(), text: "" };
+            preModule.setStatus.last = { time: now, text: "" };
         if (text === preModule.setStatus.last.text) return;
-        var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-        var now = Date.now();
+        let m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
         if (m && now - preModule.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
         preModule.setStatus.last.time = now;
         preModule.setStatus.last.text = text;
@@ -67,21 +67,23 @@ var Module = preModule;
 
 importScripts("../B1/build/wasm/exampleB1.js");
 
-const writeFile = (data) => {
+const writeFile = (data, debug = false) => {
     FS.writeFile("example.in", data);
+    if (!debug) return;
     var contents = FS.readFile("example.in", { encoding: "utf8" });
     console.log(contents);
-    Module.init();
-    Module.run("example.in");
-    postMessage({ type: "exit", data: Date.now() });
-    Module.clear();
 };
 
 self.addEventListener(
     "message",
     function (e) {
-        console.log("Worker: Message received from main script", e.data);
+        // console.log("Worker: Message received from main script", e.data);
         writeFile(e.data);
+        Module.init();
+        this.postMessage({ type: "timeOrigin", data: performance.timeOrigin });
+        Module.run("example.in");
+        postMessage({ type: "exit", time: performance.now() });
+        Module.clear();
     },
     false,
 );
