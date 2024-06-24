@@ -3,12 +3,12 @@
     // CONFIG VARIABLES
     let RENDER_THRESHOLD = 0.005,
         ANGLE_THRESHOLD = 0.00005,
-        EVENT_COUNT = 2_048, //2_048 4_096 8_192 16_384 32_768 65_536
+        EVENT_COUNT = 32_768, //2_048 4_096 8_192 16_384 32_768 65_536
         MIN_TEST_EVENTS = 2_048, //8 16 32 64 128 256 512 1_024
         RUNNING_FLAG = false,
         TEST_RUNNING_FLAG = false,
         PERSPECTIVE = 0,
-        TARGET_FPS = 24,
+        TARGET_FPS = 60,
         DISPLAY_STATS = true,
         BEAM = "electron" /* 0 = proton, 1 = e+ */ === "proton" ? 0 : 1, //
         RENDER_ONLY_NEW =
@@ -17,7 +17,7 @@
             "raw" /* true = optimal, false = raw */ === "optimal"
                 ? true
                 : false,
-        DETECT_BIN_AMOUNT = 1e3, // 1e0, 5e0, 1e1, 5e1, 1e2, 5e2, 1e3
+        DETECT_BIN_AMOUNT = 512, // 1e0, 5e0, 1e1, 5e1, 1e2, 5e2, 1e3
         RENDERING_ENABLED = true;
 
     // GLOBAL VARIABLES
@@ -33,7 +33,8 @@
         inputRenderThreshold,
         simulatedEventsRequest,
         logInterval,
-        timeOriginDifference;
+        timeOriginDifference,
+        geant4Worker;
 
     const particleOptions = [
         ["proton", "60 MeV"],
@@ -704,7 +705,7 @@
         runButton.innerHTML = "Done!";
         clearInterval(logInterval);
         logMetrics();
-        saveButton.click();
+        if (TEST_RUNNING_FLAG) saveButton.click();
         setTimeout(() => {
             runButton.innerHTML = "Run simulation";
             runButton.disabled = false;
@@ -829,14 +830,15 @@
     }
 
     function handleClick(event) {
+        if (geant4Worker) geant4Worker.terminate();
         runButton.disabled = true;
         state.log.startTime = performance.now();
         return new Promise((resolve) => {
             console.log(`Run simulation...`);
             console.log(`Waiting for runtime to be initialized...`);
-            const worker = new Worker("worker.js");
+            geant4Worker = new Worker("worker.js");
 
-            worker.onmessage = function ({
+            geant4Worker.onmessage = function ({
                 data: {
                     type: messageType,
                     data: messageData,
@@ -877,7 +879,7 @@
                             mainParticles.forEach((particle) =>
                                 assignColorToParticle(particle),
                             );
-                            worker.postMessage(
+                            geant4Worker.postMessage(
                                 [
                                     `/process/em/verbose 0`,
                                     `/run/verbose 0`,
@@ -931,13 +933,6 @@
                         // Adjust the worker's timestamp using the difference
                         const adjustedWorkerTimestamp =
                             workerTimestamp + timeOriginDifference;
-                        console.log({
-                            totalMessageWaitTime: state.totalMessageWaitTime,
-                            adjustedWorkerTimestamp,
-                            receiveTimestamp,
-                            workerTimestamp,
-                            timeOriginDifference,
-                        });
                         state.totalMessageWaitTime +=
                             receiveTimestamp - adjustedWorkerTimestamp ?? 0;
                         state.totalMessageSize += packageSize;

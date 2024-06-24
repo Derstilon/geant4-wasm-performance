@@ -27,7 +27,7 @@ G4UImanager *UImanager;
 
 void init()
 {
-  #ifdef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
   EM_ASM(
 
       // const out = console.log;
@@ -41,7 +41,7 @@ void init()
       // };
 
   );
-  #endif
+#endif
 
   G4cout << "setTheEngine" << G4endl;
   // Choose the Random engine
@@ -81,12 +81,6 @@ void run(std::string name)
   G4String command = "/control/execute ";
   G4String fileName = name;
 
-  #ifdef __EMSCRIPTEN__
-  EM_ASM(
-      console.time("Simulation run");
-      self.startTime = performance.now(););
-  #endif
-
   auto t1 = std::chrono::high_resolution_clock::now();
 
   UImanager->ApplyCommand(command + fileName);
@@ -96,14 +90,6 @@ void run(std::string name)
   std::chrono::duration<double, std::milli> ms_double = t2 - t1;
 
   G4cout << ms_double.count() << "ms\n";
-
-  #ifdef __EMSCRIPTEN__
-  EM_ASM(
-      console.timeEnd("Simulation run");
-      self.endTime = performance.now();
-      self.fullTime = self.endTime - self.startTime;
-      console.log(fullTime));
-  #endif
 }
 
 // std::vector<std::string> getMessages(){

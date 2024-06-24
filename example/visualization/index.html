@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>URL Params to Local Storage</title>
+        <script type="module" src="./index.js"></script>
+    </head>
+    <body>
+        <!-- USE function from index.js module -->
+        <button id="generateScenariosBtn" onclick="generateTestScenarios()">
+            Generate Test Scenarios
+        </button>
+        <div id="testScenarios"></div>
+        <button
+            onclick="localStorage.clear(); window.location.href = window.location.pathname "
+        >
+            Clear Local Storage
+        </button>
+        <h1>URL Params From Local Storage</h1>
+        <div id="params"></div>
+
+        <!-- Shaders -->
+        <script
+            name="shader"
+            data-src="shaders/vertex.glsl"
+            data-type="vertex"
+            data-version="v1"
+        ></script>
+        <script
+            name="shader"
+            data-src="shaders/fragment.glsl"
+            data-type="fragment"
+            data-version="v1"
+        ></script>
+
+        <!-- Library: Signals processing used for dispatching methods -->
+        <script type="text/javascript" src="libs/signals.js"></script>
+        <script type="text/javascript" src="libs/glMatrix.js"></script>
+
+        <!-- Library: our common libraries -->
+        <script type="text/javascript" src="libs/glUtils.js"></script>
+        <script type="text/javascript" src="libs/uiUtils.js"></script>
+    </body>
+</html>
