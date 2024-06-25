@@ -1,21 +1,41 @@
 // Import function from tje render.js file
-import { initializeWebWorker } from "./test.js";
-
+import { initializeWebWorker } from "./simulation.js";
+import { startVisualization } from "./render.js";
+import {
+    saveResultsToLocalStorage,
+    storeFullParams,
+    storeLogs,
+} from "./logger.js";
+const millisecondsInSecond = 1000;
+const millisecondsInMinute = millisecondsInSecond * 60;
 function logLocalStorageInBody() {
     // add data from local storage to body as a list
     const paramsDiv = document.querySelector("#params");
     if (paramsDiv)
-        Object.entries(localStorage)
-            .sort((a, b) => b[1] - a[1])
-            .forEach(([key, value]) => {
-                const p = document.createElement("p");
-                p.innerHTML = `${key}<br\>${new Date(
-                    Math.round(
-                        JSON.parse(value).testInit + performance.timeOrigin,
-                    ),
-                ).toLocaleString()}`;
-                paramsDiv.appendChild(p);
-            });
+        // @ts-ignore
+        ldb.getAll((data) => {
+            data.map(({ k: key, v: value }) => {
+                return [key, JSON.parse(value)["timeStamps"]];
+            })
+                .sort((a, b) => b[1][0][1] - a[1][0][1])
+                .forEach(([key, value]) => {
+                    const p = document.createElement("p");
+                    const timeDifference =
+                        value[value.length - 1][1] - value[0][1];
+                    const minutes = Math.floor(
+                        timeDifference / millisecondsInMinute,
+                    );
+                    const seconds = Math.floor(
+                        (timeDifference % millisecondsInMinute) /
+                            millisecondsInSecond,
+                    );
+                    p.innerHTML = `${key.replaceAll(
+                        "&",
+                        " ",
+                    )}<br\>${minutes}m ${seconds}s`;
+                    paramsDiv.appendChild(p);
+                });
+        });
 }
 function zipObjectFromParams() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -51,7 +71,7 @@ function localeNumberArray(length, numberFn = (i) => i) {
             .replaceAll(",", "_"),
     );
 }
-function generateTestScenarios() {
+function generateTestScenarios(button) {
     const testDiv = document.querySelector("#testScenarios");
     if (!testDiv) {
         typeof console.error("No testScenarios div found");
@@ -73,7 +93,7 @@ function generateTestScenarios() {
                     "all_processed",
                     "none",
                 ],
-                t: ["24", "60", "120"],
+                t: ["0", "0.5", "24", "60", "120"],
             },
         },
         {
@@ -83,7 +103,7 @@ function generateTestScenarios() {
                 n: localeNumberArray(9, (i) => 4 ** i),
                 b: localeNumberArray(10, (i) => 2 ** i),
                 p: ["proton"],
-                r: ["all_raw, all_processed"],
+                r: ["all_raw", "all_processed"],
                 t: ["24", "60", "120"],
             },
         },
@@ -121,18 +141,46 @@ function generateTestScenarios() {
             },
         },
         {
-            name: "Test scenario",
+            name: "Test scenario 1",
             params: {
                 i: ["0"],
-                n: ["1", "4"],
+                n: ["1024", "4096"],
                 b: ["1", "2"],
                 p: ["proton"],
                 r: ["new_raw"],
                 t: ["24"],
             },
         },
+        {
+            name: "Test scenario 2",
+            params: {
+                i: ["0", "1"],
+                n: ["4096"],
+                b: ["256"],
+                p: ["proton"],
+                r: [
+                    "all_processed",
+                    "all_raw",
+                    "new_raw",
+                    "new_processed",
+                    "none",
+                ],
+                t: ["3"],
+            },
+        },
+        {
+            name: "Test scenario 3",
+            params: {
+                i: ["0", "1"],
+                n: ["8192"],
+                b: ["512"],
+                p: ["proton"],
+                r: ["all_processed", "all_raw", "none"],
+                t: ["0", "0.5", "24"],
+            },
+        },
     ];
-
+    testDiv.innerHTML = "";
     for (const { name, params } of testScenarios) {
         const button = document.createElement("button");
         button.innerHTML = name;
@@ -142,55 +190,89 @@ function generateTestScenarios() {
         };
         testDiv.appendChild(button);
     }
+    button.disabled = true;
 }
 function refreshForNextTest(urlParams) {
     const newUrl = `${window.location.pathname}?${urlParams}`;
-    console.log(newUrl);
-    setTimeout(() => {
-        window.location.href = newUrl;
-    }, 150);
+    // setTimeout(() => {
+    window.location.href = newUrl;
+    // }, 150);
 }
 function initializeTestRun(urlParams) {
-    initializeWebWorker(urlParams)
-        .then((value) => {
-            console.log(value);
-        })
-        .catch((error) => {
-            console.error(error);
-        });
+    storeFullParams(urlParams);
+    storeLogs("timeStamps", ["testStart", performance.now()]);
+    const initPromise = initializeWebWorker(urlParams);
+    const visualizationPromise = startVisualization(urlParams);
+    return Promise.all([initPromise, visualizationPromise]);
 }
+
+function findNextTestParams(
+    params,
+    testParams,
+    paramValueArrays,
+    arrayIdx = 0,
+) {
+    if (arrayIdx >= paramValueArrays.length) return Promise.resolve(null);
+    return new Promise((resolve) => {
+        const array = paramValueArrays[arrayIdx];
+        testParams = zipObjectToParams(params, true);
+        array.push(array.shift());
+        // @ts-ignore
+        return ldb.get(`${testParams}`, (localDataValue) => {
+            if (localDataValue === null) return resolve(testParams);
+            testParams = zipObjectToParams(params, true);
+            // @ts-ignore
+            ldb.get(`${testParams}`, (localDataValue2) => {
+                if (localDataValue2 === null) return resolve(testParams);
+                array.unshift(array.pop());
+                findNextTestParams(
+                    params,
+                    testParams,
+                    paramValueArrays,
+                    arrayIdx + 1,
+                ).then(resolve);
+            });
+        });
+    });
+}
+
 function prepareTestFromParams() {
     const scenarioBtn = document.querySelector("#generateScenariosBtn");
     if (scenarioBtn && scenarioBtn instanceof HTMLButtonElement)
-        scenarioBtn.onclick = generateTestScenarios;
+        scenarioBtn.onclick = () => generateTestScenarios(scenarioBtn);
     // Get the current URL search params
     const params = zipObjectFromParams();
+
+    // let testParams = new URLSearchParams();
+    // let newRecord = Object.entries(params).some(([_, value]) => {
+    //     testParams = zipObjectToParams(params, true);
+    //     value.push(value.shift());
+    //     // @ts-ignore
+    //     if (ldb.get(`${testParams}`) !== null) {
+    //         testParams = zipObjectToParams(params, true);
+    //         // @ts-ignore
+    //         if (ldb.get(`${testParams}`) !== null) {
+    //             value.unshift(value.pop());
+    //             return false;
+    //         }
+    //     }
+    //     return true;
+    // });
     let testParams = new URLSearchParams();
-    let newRecord = Object.entries(params).some(([key, value]) => {
-        testParams = zipObjectToParams(params, true);
-        value.push(value.shift());
-        if (localStorage.getItem(`${testParams}`) !== null) {
-            testParams = zipObjectToParams(params, true);
-            if (localStorage.getItem(`${testParams}`) !== null) {
-                value.unshift(value.pop());
-                return false;
-            }
-        }
+    let paramValueArrays = Object.values(params);
 
-        localStorage.setItem(
-            `${testParams}`,
-            JSON.stringify({
-                testInit: performance.now(),
-            }),
-        );
-        return true;
-    });
-
-    if (newRecord) {
-        initializeTestRun(testParams);
-        logLocalStorageInBody();
-        //update the url with the remaining params
-        // refreshForNextTest(zipObjectToParams(params));
-    }
+    findNextTestParams(params, testParams, paramValueArrays).then(
+        (testParams) => {
+            console.log(testParams);
+            if (testParams === null) return logLocalStorageInBody();
+            const title = document.querySelector("#currentTest");
+            if (title) title.innerHTML = `${testParams}`.replaceAll("&", " ");
+            initializeTestRun(testParams).then(() => {
+                storeLogs("timeStamps", ["testEnd", performance.now()]);
+                saveResultsToLocalStorage(`${testParams}`);
+                refreshForNextTest(zipObjectToParams(params));
+            });
+        },
+    );
 }
 window.onload = prepareTestFromParams;

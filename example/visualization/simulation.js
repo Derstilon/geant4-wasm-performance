@@ -1,36 +1,13 @@
-const _defaultTestParams = {
-    n: 128,
-    b: 1,
-    p: "proton",
-    d: "all_raw",
-    t: "24",
-};
 const particleOptions = {
     proton: ["proton", "60 MeV"],
     electron: ["e+", "6 MeV"],
 };
-const testResults = {};
+const encoder = new TextEncoder();
+let simulationStatus = "pending";
 let timeOriginDiff = 0;
-function getFullParams(testParams = {}) {
-    const {
-        n: numberOfSimulatedEvents,
-        b: numberOfBins,
-        p: particleType,
-        d: dataHandling,
-        t: targetFrames,
-    } = {
-        // fill in missing parameters with defaults
-        ..._defaultTestParams,
-        ...Object.fromEntries(Array.from(testParams.entries())),
-    };
-    return {
-        numberOfSimulatedEvents,
-        numberOfBins,
-        particleType,
-        dataHandling,
-        targetFrames,
-    };
-}
+import { enqueueData } from "./data.js";
+import { increaseStoredNumber, storeLogs } from "./logger.js";
+import { getFullParams } from "./params.js";
 export function getInputFile(testParams = {}) {
     const { numberOfSimulatedEvents, numberOfBins, particleType } =
         getFullParams(testParams);
@@ -72,6 +49,7 @@ export function getInputFile(testParams = {}) {
 }
 export function initializeWebWorker(testParams = {}) {
     const inputFile = getInputFile(testParams);
+    const { dataHandling } = getFullParams(testParams);
     return new Promise((resolve, reject) => {
         const messageHandler = ({
             data: {
@@ -86,17 +64,41 @@ export function initializeWebWorker(testParams = {}) {
                     timeOriginDiff = messagePayload - performance.timeOrigin;
                     break;
                 case "exit":
-                    testResults.simulationLog = messagePayload;
-                    resolve(testResults);
+                    simulationStatus = "finished";
+                    const { endTime, startTime } = messagePayload;
+                    storeLogs("timeStamps", [
+                        "simulationStart",
+                        startTime + timeOriginDiff,
+                    ]);
+                    storeLogs("timeStamps", [
+                        "simulationEnd",
+                        endTime + timeOriginDiff,
+                    ]);
+                    resolve(true);
                     break;
                 case "print":
-                    console.warn(messagePayload);
                     break;
                 case "event":
                     if (messagePayload !== "onRuntimeInitialized") break;
+                    storeLogs("timeStamps", ["workerStart", performance.now()]);
+                    simulationStatus = "running";
                     geant4Worker.postMessage({
                         type: "run",
                         data: inputFile,
+                    });
+                    break;
+                case "render":
+                    if (dataHandling === "none") break;
+                    const packageSize = encoder.encode(
+                        JSON.stringify(messagePayload),
+                    ).length;
+                    increaseStoredNumber("messageCount");
+                    increaseStoredNumber("dataSize", packageSize);
+                    enqueueData({
+                        payload: messagePayload,
+                        sendTime: messageTimestamp + timeOriginDiff,
+                        receiveTime: handleTimestamp,
+                        packageSize,
                     });
                     break;
                 default:
@@ -108,4 +110,7 @@ export function initializeWebWorker(testParams = {}) {
         geant4Worker.onerror = reject;
         geant4Worker.onmessage = messageHandler;
     });
+}
+export function getSimulationStatus() {
+    return simulationStatus;
 }

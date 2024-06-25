@@ -19,30 +19,12 @@ var preModule = {
             data: "onRuntimeInitialized",
         });
     },
-    // setStatus: function (text) {
-    //     let now = performance.now();
-    //     if (!preModule.setStatus.last)
-    //         preModule.setStatus.last = { time: now, text: "" };
-    //     if (text === preModule.setStatus.last.text) return;
-    //     let m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-    //     if (m && now - preModule.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
-    //     preModule.setStatus.last.time = now;
-    //     preModule.setStatus.last.text = text;
-    //     postMessage({ type: "status", data: text });
-    // },
-    // totalDependencies: 0,
-    // monitorRunDependencies: function (left) {
-    //     this.totalDependencies = Math.max(this.totalDependencies, left);
-    //     preModule.setStatus(
-    //         left
-    //             ? "Preparing... (" +
-    //                   (this.totalDependencies - left) +
-    //                   "/" +
-    //                   this.totalDependencies +
-    //                   ")"
-    //             : "All downloads complete.",
-    //     );
-    // },
+    print: (function () {
+        return function (text) {
+            if (arguments.length > 1)
+                text = Array.prototype.slice.call(arguments).join(" ");
+        };
+    })(),
     locateFile: (path, prefix) => {
         if ([".data", ".wasm"].some((ext) => path.endsWith(ext)))
             return `/example/B1/build/wasm/${path}`;
