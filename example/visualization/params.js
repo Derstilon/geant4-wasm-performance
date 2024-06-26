@@ -1,11 +1,12 @@
 const _defaultTestParams = {
-    n: 128,
-    b: 1,
+    n: "128",
+    b: "1",
     p: "proton",
     r: "all_raw",
     t: "24",
 };
-export function getFullParams(testParams = {}) {
+
+export function getFullParams(testParams = new URLSearchParams()) {
     const {
         n: numberOfSimulatedEvents,
         b: numberOfBins,
@@ -24,4 +25,14 @@ export function getFullParams(testParams = {}) {
         dataHandling,
         targetFrames,
     };
+}
+export function getHumanReadableParams(testParams = new URLSearchParams()) {
+    const {
+        numberOfSimulatedEvents,
+        numberOfBins,
+        particleType,
+        dataHandling,
+        targetFrames,
+    } = getFullParams(testParams);
+    return `n=[${numberOfSimulatedEvents}] <br/> b=[${numberOfBins}] <br/> p=[${particleType}] <br/> r=[${dataHandling}] <br/> t=[${targetFrames}]`;
 }

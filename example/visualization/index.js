@@ -6,8 +6,60 @@ import {
     storeFullParams,
     storeLogs,
 } from "./logger.js";
+import { getHumanReadableParams } from "./params.js";
 const millisecondsInSecond = 1000;
 const millisecondsInMinute = millisecondsInSecond * 60;
+function createDownloadableButtons() {
+    const paramsDiv = document.querySelector("#params");
+    if (!paramsDiv) return;
+    paramsDiv.innerHTML = "";
+    // @ts-ignore
+    ldb.getAll((data) => {
+        data.forEach(({ k: key, v: value }) => {
+            const button = document.createElement("button");
+            button.innerHTML = getHumanReadableParams(new URLSearchParams(key));
+            // on click save stringified json from local storage to file
+            button.onclick = () => {
+                const blob = new Blob([value], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${key}.json`;
+                a.click();
+            };
+            // append button to div
+            paramsDiv.appendChild(button);
+        });
+        // add button to download every file from local storage as a zip
+        const button = document.createElement("button");
+        button.innerHTML = "Download all";
+        button.id = "downloadAll";
+        button.onclick = () => {
+            // @ts-ignore
+            const zip = new JSZip();
+            data.forEach(({ k: key, v: value }) => {
+                zip.file(`${key}.json`, value);
+            });
+            zip.generateAsync({ type: "blob" }).then((content) => {
+                const url = URL.createObjectURL(content);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "results.zip";
+                a.click();
+            });
+        };
+        button.disabled = data.length === 0;
+        paramsDiv.appendChild(button);
+    });
+}
+function timeDifferenceLocaleString(begin, end) {
+    const timeDifference = end - begin;
+    const minutes = Math.floor(timeDifference / millisecondsInMinute);
+    const seconds = Math.floor(
+        (timeDifference % millisecondsInMinute) / millisecondsInSecond,
+    );
+    return `${minutes}m ${seconds}s`;
+}
 function logLocalStorageInBody() {
     // add data from local storage to body as a list
     const paramsDiv = document.querySelector("#params");
@@ -17,22 +69,17 @@ function logLocalStorageInBody() {
             data.map(({ k: key, v: value }) => {
                 return [key, JSON.parse(value)["timeStamps"]];
             })
-                .sort((a, b) => b[1][0][1] - a[1][0][1])
+                .sort((a, b) => ([b[0], a[0]].sort()[0] === b[0] ? 1 : -1))
                 .forEach(([key, value]) => {
                     const p = document.createElement("p");
-                    const timeDifference =
-                        value[value.length - 1][1] - value[0][1];
-                    const minutes = Math.floor(
-                        timeDifference / millisecondsInMinute,
-                    );
-                    const seconds = Math.floor(
-                        (timeDifference % millisecondsInMinute) /
-                            millisecondsInSecond,
+                    const timeString = timeDifferenceLocaleString(
+                        value[0][1],
+                        value[value.length - 1][1],
                     );
                     p.innerHTML = `${key.replaceAll(
                         "&",
                         " ",
-                    )}<br\>${minutes}m ${seconds}s`;
+                    )}<br\>${timeString}`;
                     paramsDiv.appendChild(p);
                 });
         });
@@ -63,13 +110,7 @@ function zipObjectToParams(obj, onlyFirst = false) {
     return urlParams;
 }
 function localeNumberArray(length, numberFn = (i) => i) {
-    return Array.from({ length }, (_, i) =>
-        numberFn(i)
-            .toLocaleString("en-US", {
-                useGrouping: true,
-            })
-            .replaceAll(",", "_"),
-    );
+    return Array.from({ length }, (_, i) => numberFn(i));
 }
 function generateTestScenarios(button) {
     const testDiv = document.querySelector("#testScenarios");
@@ -242,29 +283,12 @@ function prepareTestFromParams() {
         scenarioBtn.onclick = () => generateTestScenarios(scenarioBtn);
     // Get the current URL search params
     const params = zipObjectFromParams();
-
-    // let testParams = new URLSearchParams();
-    // let newRecord = Object.entries(params).some(([_, value]) => {
-    //     testParams = zipObjectToParams(params, true);
-    //     value.push(value.shift());
-    //     // @ts-ignore
-    //     if (ldb.get(`${testParams}`) !== null) {
-    //         testParams = zipObjectToParams(params, true);
-    //         // @ts-ignore
-    //         if (ldb.get(`${testParams}`) !== null) {
-    //             value.unshift(value.pop());
-    //             return false;
-    //         }
-    //     }
-    //     return true;
-    // });
     let testParams = new URLSearchParams();
     let paramValueArrays = Object.values(params);
 
     findNextTestParams(params, testParams, paramValueArrays).then(
         (testParams) => {
-            console.log(testParams);
-            if (testParams === null) return logLocalStorageInBody();
+            if (testParams === null) return createDownloadableButtons();
             const title = document.querySelector("#currentTest");
             if (title) title.innerHTML = `${testParams}`.replaceAll("&", " ");
             initializeTestRun(testParams).then(() => {

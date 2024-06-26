@@ -8,7 +8,7 @@ let timeOriginDiff = 0;
 import { enqueueData } from "./data.js";
 import { increaseStoredNumber, storeLogs } from "./logger.js";
 import { getFullParams } from "./params.js";
-export function getInputFile(testParams = {}) {
+export function getInputFile(testParams = new URLSearchParams()) {
     const { numberOfSimulatedEvents, numberOfBins, particleType } =
         getFullParams(testParams);
     const nBin = Array.from({ length: 3 }, () => `${numberOfBins}`).join(" ");
@@ -47,7 +47,7 @@ export function getInputFile(testParams = {}) {
         `/run/beamOn ${beamOn}`,
     ].join("\n");
 }
-export function initializeWebWorker(testParams = {}) {
+export function initializeWebWorker(testParams = new URLSearchParams()) {
     const inputFile = getInputFile(testParams);
     const { dataHandling } = getFullParams(testParams);
     return new Promise((resolve, reject) => {

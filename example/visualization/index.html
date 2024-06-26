@@ -24,7 +24,7 @@
                 left: 10px;
                 color: white;
                 display: grid;
-                grid-template-columns: 2fr 2fr 30fr;
+                grid-template-columns: 3fr 3fr 20fr;
             }
             #UI > button {
                 margin-top: 10px;
@@ -40,7 +40,9 @@
             }
             #params {
                 margin-top: 15px;
-                grid-column: 1 / span 3;
+                grid-column: 1 / span 2;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
             }
             #params > p {
                 margin-top: 5px;
@@ -49,6 +51,11 @@
                 margin-left: 30px;
                 margin-top: 10px;
                 text-align: center;
+                grid-column: 1 / span 2;
+            }
+            #downloadAll {
+                padding: 10px;
+                grid-column: 1 / span 2;
             }
         </style>
     </head>
@@ -95,6 +102,9 @@
 
         <!-- Library: https://github.com/DVLP/localStorageDB -->
         <script type="text/javascript" src="libs/localdata.js"></script>
+
+        <!-- Library: https://github.com/Stuk/jszip -->
+        <script type="text/javascript" src="libs/jszip.js"></script>
 
         <!-- This is main working script -->
         <script type="module" src="./index.js"></script>

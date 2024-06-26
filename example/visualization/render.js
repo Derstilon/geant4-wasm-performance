@@ -388,7 +388,7 @@ function visualizationStep(
     );
 }
 
-export function startVisualization(testParams = {}) {
+export function startVisualization(testParams = new URLSearchParams()) {
     return new Promise((resolve) => {
         const { dataHandling, targetFrames } = getFullParams(testParams);
         // @ts-ignore
