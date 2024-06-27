@@ -1,9 +1,9 @@
 const _defaultTestParams = {
-    n: "128",
-    b: "1",
+    n: 128,
+    b: 1,
     p: "proton",
     r: "all_raw",
-    t: "24",
+    t: 0.5,
 };
 
 export function getFullParams(testParams = new URLSearchParams()) {

@@ -24,7 +24,7 @@
                 left: 10px;
                 color: white;
                 display: grid;
-                grid-template-columns: 3fr 3fr 20fr;
+                grid-template-columns: 3fr 3fr 3fr 20fr;
             }
             #UI > button {
                 margin-top: 10px;
@@ -33,6 +33,8 @@
             #testScenarios {
                 margin-top: 10px;
                 grid-column: 1 / span 3;
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
             }
             #testScenarios > button {
                 margin-right: 2px;
@@ -40,7 +42,7 @@
             }
             #params {
                 margin-top: 15px;
-                grid-column: 1 / span 2;
+                grid-column: 1 / span 3;
                 display: grid;
                 grid-template-columns: 1fr 1fr;
             }
@@ -57,6 +59,51 @@
                 padding: 10px;
                 grid-column: 1 / span 2;
             }
+            dialog {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            }
+            dialog form {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            dialog form button {
+                grid-column: 1 / span 2;
+                padding: 10px;
+            }
+            dialog h2 {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            dialog p {
+                margin-bottom: 10px;
+            }
+            dialog form input {
+                padding: 2px;
+                border-radius: 5px;
+                border: 2px solid black;
+            }
+            ::backdrop {
+                background-image: linear-gradient(
+                    45deg,
+                    magenta,
+                    rebeccapurple,
+                    dodgerblue,
+                    green
+                );
+                opacity: 0.75;
+            }
+            input:invalid {
+                border-color: red;
+                background-color: #ffcccc;
+            }
         </style>
     </head>
     <body>
@@ -67,16 +114,77 @@
         <div id="UI">
             <!-- USE function from index.js module -->
             <button id="generateScenariosBtn">Generate Test Scenarios</button>
-            <button
-                onclick="ldb.clear(); window.location.href = window.location.pathname "
-            >
-                Reset testing environment
-            </button>
+            <button id="customTestBtn">Custom Test Scenario</button>
+            <button id="resetBtn">Reset testing environment</button>
             <h1 id="currentTest"></h1>
             <div id="testScenarios"></div>
             <!-- <h1>URL Params From Local Storage</h1> -->
             <div id="params"></div>
         </div>
+        <dialog id="customTestDialog">
+            <h2>Define custom test scenario</h2>
+            <p>
+                Each value of test parameters that you want to run should be
+                provided separated by commas. <br />
+                For example, if you want to run test with 1, 4, 16, 64, 256
+                events, <br />
+                you should provide <code>1,4,16,64,256</code> as a value for the
+                number of simulated events.
+            </p>
+            <form>
+                <label for="iParam">Number of test reruns</label>
+                <input
+                    type="number"
+                    id="iParam"
+                    name="iParam"
+                    placeholder="1"
+                    min="1"
+                    max="20"
+                    step="1"
+                />
+                <label for="nParam">Number of simulated events</label>
+                <input
+                    type="text"
+                    id="nParam"
+                    name="nParam"
+                    placeholder="1,4,16,64,256"
+                    pattern="\d+(,\d+)*"
+                />
+                <label for="bParam">Number of detector bins</label>
+                <input
+                    type="text"
+                    id="bParam"
+                    name="bParam"
+                    placeholder="1,2,4,8,16,32"
+                    pattern="\d+(,\d+)*"
+                />
+                <label for="pParam">Particle type</label>
+                <input
+                    type="text"
+                    id="pParam"
+                    name="pParam"
+                    placeholder="proton,electron"
+                    pattern="(proton|electron)(,(proton|electron))*"
+                />
+                <label for="rParam">Data handling</label>
+                <input
+                    type="text"
+                    id="rParam"
+                    name="rParam"
+                    placeholder="new_raw,all_raw,new_processed,all_processed,none"
+                    pattern="(new_raw|all_raw|new_processed|all_processed|none)(,(new_raw|all_raw|new_processed|all_processed|none))*"
+                />
+                <label for="tParam">Target frames</label>
+                <input
+                    type="text"
+                    id="tParam"
+                    name="tParam"
+                    placeholder="0,0.5,24,30,60,120"
+                    pattern="\d+(\.\d+)?(,\d+(\.\d+)?)*"
+                />
+                <button id="runCustomTestBtn">Run test scenario</button>
+            </form>
+        </dialog>
 
         <!-- Shaders -->
         <script
@@ -107,6 +215,7 @@
         <script type="text/javascript" src="libs/jszip.js"></script>
 
         <!-- This is main working script -->
+        <script type="module" src="./ui.js"></script>
         <script type="module" src="./index.js"></script>
     </body>
 </html>
