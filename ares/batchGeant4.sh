@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes 1
 #SBATCH --ntasks 45
-#SBATCH --time=00:19:59
+#SBATCH --time=00:14:59
 #SBATCH --partition=plgrid-now
 #SBATCH -A plgyaptide3-cpu
 #SBATCH -C memfs

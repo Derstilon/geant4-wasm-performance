@@ -84,6 +84,8 @@
             }
             dialog p {
                 margin-bottom: 10px;
+                width: 25vw;
+                min-width: 400px;
             }
             dialog form input {
                 padding: 2px;
@@ -113,8 +115,10 @@
         </canvas>
         <div id="UI">
             <!-- USE function from index.js module -->
-            <button id="generateScenariosBtn">Generate Test Scenarios</button>
-            <button id="customTestBtn">Custom Test Scenario</button>
+            <button id="generateScenariosBtn" disabled>
+                Generate Test Scenarios
+            </button>
+            <button id="customTestBtn" disabled>Custom Test Scenario</button>
             <button id="resetBtn">Reset testing environment</button>
             <h1 id="currentTest"></h1>
             <div id="testScenarios"></div>
@@ -125,11 +129,10 @@
             <h2>Define custom test scenario</h2>
             <p>
                 Each value of test parameters that you want to run should be
-                provided separated by commas. <br />
-                For example, if you want to run test with 1, 4, 16, 64, 256
-                events, <br />
-                you should provide <code>1,4,16,64,256</code> as a value for the
-                number of simulated events.
+                provided separated by commas. For example, if you want to run
+                test with number of simulated events equal to consecutive powers
+                of 4, you should provide <code>1,4,16,64,256</code> as a value
+                for the number of simulated events.
             </p>
             <form>
                 <label for="iParam">Number of test reruns</label>

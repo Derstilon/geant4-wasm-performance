@@ -56,6 +56,7 @@ export function createDownloadableButtons() {
             // append button to div
             paramsDiv.appendChild(button);
         });
+        if (data.length === 0) return;
         // add button to download every file from local storage as a zip
         const button = document.createElement("button");
         button.innerHTML = "Download all";
@@ -74,7 +75,6 @@ export function createDownloadableButtons() {
                 a.click();
             });
         };
-        button.disabled = data.length === 0;
         paramsDiv.appendChild(button);
     });
 }
@@ -101,7 +101,14 @@ export function generateTestScenarios(testScenarios = []) {
                 }
                 scenarioBtn.disabled = true;
             };
-        else scenarioBtn.disabled = true;
+}
+
+export function enableUI() {
+    const customTestBtn = document.querySelector("#customTestBtn");
+    if (customTestBtn instanceof HTMLButtonElement)
+        customTestBtn.disabled = false;
+    const scenarioBtn = document.querySelector("#generateScenariosBtn");
+    if (scenarioBtn instanceof HTMLButtonElement) scenarioBtn.disabled = false;
 }
 
 (function () {

@@ -8,6 +8,7 @@ import {
 } from "./logger.js";
 import {
     createDownloadableButtons,
+    enableUI,
     generateTestScenarios,
     setCurrentTestTitle,
 } from "./ui.js";
@@ -89,6 +90,10 @@ function localeNumberArray(length, numberFn = (i) => i) {
 function prepareTestFromParams() {
     generateTestScenarios([
         {
+            name: "Minimal testing scenario",
+            params: { i: [0] },
+        },
+        {
             name: "Full testing scenario",
             params: {
                 i: localeNumberArray(20),
@@ -149,45 +154,6 @@ function prepareTestFromParams() {
                 t: ["24", "60", "120"],
             },
         },
-        {
-            name: "Test scenario 1",
-            params: {
-                i: ["0"],
-                n: ["1024", "4096"],
-                b: ["1", "2"],
-                p: ["proton"],
-                r: ["new_raw"],
-                t: ["24"],
-            },
-        },
-        {
-            name: "Test scenario 2",
-            params: {
-                i: ["0", "1"],
-                n: ["4096"],
-                b: ["256"],
-                p: ["proton"],
-                r: [
-                    "all_processed",
-                    "all_raw",
-                    "new_raw",
-                    "new_processed",
-                    "none",
-                ],
-                t: ["3"],
-            },
-        },
-        {
-            name: "Test scenario 3",
-            params: {
-                i: ["0", "1"],
-                n: ["8192"],
-                b: ["512"],
-                p: ["proton"],
-                r: ["all_processed", "all_raw", "none"],
-                t: ["0", "0.5", "24"],
-            },
-        },
     ]);
     // Get the current URL search params
     const params = zipObjectFromParams();
@@ -196,7 +162,11 @@ function prepareTestFromParams() {
 
     findNextTestParams(params, testParams, paramValueArrays).then(
         (testParams) => {
-            if (testParams === null) return createDownloadableButtons();
+            if (testParams === null) {
+                createDownloadableButtons();
+                enableUI();
+                return;
+            }
             setCurrentTestTitle(`${testParams}`.replaceAll("&", " "));
             initializeTestRun(testParams).then(() => {
                 storeLogs("timeStamps", ["testEnd", performance.now()]);
