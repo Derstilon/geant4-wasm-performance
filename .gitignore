@@ -3,6 +3,6 @@
 /emsdk
 /geant4
 .vscode/settings.json
-results/logs
-results/env
-results/__pycache__
+result_plot/logs
+result_plot/env
+result_plot/__pycache__
