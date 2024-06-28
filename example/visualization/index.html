@@ -53,7 +53,7 @@
                 margin-left: 30px;
                 margin-top: 10px;
                 text-align: center;
-                grid-column: 1 / span 2;
+                grid-column: 4;
             }
             #downloadAll {
                 padding: 10px;
@@ -71,7 +71,7 @@
             }
             dialog form {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr 2fr;
                 gap: 10px;
             }
             dialog form button {
@@ -85,7 +85,7 @@
             dialog p {
                 margin-bottom: 10px;
                 width: 25vw;
-                min-width: 400px;
+                min-width: 500px;
             }
             dialog form input {
                 padding: 2px;
@@ -126,13 +126,14 @@
             <div id="params"></div>
         </div>
         <dialog id="customTestDialog">
-            <h2>Define custom test scenario</h2>
+            <h2>Define a Custom Test Scenario</h2>
             <p>
-                Each value of test parameters that you want to run should be
-                provided separated by commas. For example, if you want to run
-                test with number of simulated events equal to consecutive powers
-                of 4, you should provide <code>1,4,16,64,256</code> as a value
-                for the number of simulated events.
+                Please provide each test parameter value separated by commas.
+                For instance, to run a test with the
+                <b>number of simulated events</b>
+                equal to consecutive powers of 4, enter
+                <code>1,4,16,64,256</code> as the value for the number of
+                simulated events.
             </p>
             <form>
                 <label for="iParam">Number of test reruns</label>

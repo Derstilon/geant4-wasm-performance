@@ -71,7 +71,7 @@ export function createDownloadableButtons() {
                 const url = URL.createObjectURL(content);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "results.zip";
+                a.download = "logs.zip";
                 a.click();
             });
         };
