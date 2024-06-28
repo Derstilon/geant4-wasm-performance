@@ -96,9 +96,9 @@ function prepareTestFromParams() {
         {
             name: "Full testing scenario",
             params: {
-                i: localeNumberArray(20),
-                n: localeNumberArray(22, (i) => 2 ** i).reverse(),
-                b: localeNumberArray(10, (i) => 2 ** i).reverse(),
+                i: localeNumberArray(5),
+                n: localeNumberArray(14, (i) => 2 ** i).reverse(),
+                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
                 p: ["proton", "electron"],
                 r: [
                     "new_raw",
