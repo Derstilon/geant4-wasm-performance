@@ -1,0 +1,3 @@
+[submodule "result_plot/pyblish"]
+	path = result_plot/pyblish
+	url = https://github.com/Derstilon/pyblish
