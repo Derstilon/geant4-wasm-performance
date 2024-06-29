@@ -1,5 +1,5 @@
 import { zipObjectToParams } from "./index.js";
-import { getHumanReadableParams } from "./params.js";
+import { getHumanReadableParams, sortParams } from "./params.js";
 
 const millisecondsInSecond = 1000;
 const millisecondsInMinute = millisecondsInSecond * 60;
@@ -41,22 +41,13 @@ export function createDownloadableButtons() {
     paramsDiv.innerHTML = "";
     // @ts-ignore
     ldb.getAll((data) => {
-        data.forEach(({ k: key, v: value }) => {
-            const button = document.createElement("button");
-            button.innerHTML = getHumanReadableParams(new URLSearchParams(key));
-            // on click save stringified json from local storage to file
-            button.onclick = () => {
-                const blob = new Blob([value], { type: "text/plain" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${key}.json`;
-                a.click();
-            };
-            // append button to div
-            paramsDiv.appendChild(button);
-        });
         if (data.length === 0) return;
+        const sortedData = data.sort(({ k: keyA }, { k: keyB }) =>
+            sortParams(
+                new URLSearchParams(`?${keyA}`),
+                new URLSearchParams(`?${keyB}`),
+            ),
+        );
         // add button to download every file from local storage as a zip
         const button = document.createElement("button");
         button.innerHTML = "Download all";
@@ -76,12 +67,36 @@ export function createDownloadableButtons() {
             });
         };
         paramsDiv.appendChild(button);
+        sortedData.forEach(({ k: key, v: value }) => {
+            const button = document.createElement("button");
+            button.innerHTML = getHumanReadableParams(new URLSearchParams(key));
+            // on click save stringified json from local storage to file
+            button.onclick = () => {
+                const blob = new Blob([value], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${key}.json`;
+                a.click();
+            };
+            // append button to div
+            paramsDiv.appendChild(button);
+        });
     });
 }
 
 export function setCurrentTestTitle(title) {
     const header = document.querySelector("#currentTest");
     if (header) header.innerHTML = title;
+    document.title = `Test in progress: ${title}`;
+    const stopButton = document.querySelector("#stopCurrentTestBatch");
+    if (stopButton instanceof HTMLButtonElement) {
+        stopButton.onclick = () => {
+            window.location.href = window.location.pathname;
+        };
+        stopButton.disabled = false;
+        stopButton.hidden = false;
+    }
 }
 export function generateTestScenarios(testScenarios = []) {
     const scenarioBtn = document.querySelector("#generateScenariosBtn");
@@ -115,7 +130,6 @@ export function enableUI() {
     const dialog = document.querySelector("#customTestDialog");
     const customTestBtn = document.querySelector("#customTestBtn");
     if (dialog instanceof HTMLDialogElement) {
-        console.log(dialog, customTestBtn);
         dialog.onclick = (event) => {
             var rect = dialog.getBoundingClientRect();
             var isInDialog =

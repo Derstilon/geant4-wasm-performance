@@ -54,32 +54,29 @@ function initializeTestRun(urlParams) {
     return Promise.all([initPromise, visualizationPromise]);
 }
 
-function findNextTestParams(
-    params,
-    testParams,
-    paramValueArrays,
-    arrayIdx = 0,
-) {
-    if (arrayIdx >= paramValueArrays.length) return Promise.resolve(null);
+function findNextTestParams(params, textParams, paramValueArrays) {
     return new Promise((resolve) => {
-        const array = paramValueArrays[arrayIdx];
-        testParams = zipObjectToParams(params, true);
-        array.push(array.shift());
+        if (paramValueArrays.length === 0) return resolve(null);
         // @ts-ignore
-        return ldb.get(`${testParams}`, (localDataValue) => {
-            if (localDataValue === null) return resolve(testParams);
-            testParams = zipObjectToParams(params, true);
-            // @ts-ignore
-            ldb.get(`${testParams}`, (localDataValue2) => {
-                if (localDataValue2 === null) return resolve(testParams);
-                array.unshift(array.pop());
-                findNextTestParams(
-                    params,
-                    testParams,
-                    paramValueArrays,
-                    arrayIdx + 1,
-                ).then(resolve);
-            });
+        return ldb.list((keys) => {
+            // find the first key that is not in the keys array
+            for (
+                let arrayIdx = 0;
+                arrayIdx < paramValueArrays.length;
+                arrayIdx++
+            ) {
+                const array = paramValueArrays[arrayIdx];
+                for (let i = 0; i < array.length; i++) {
+                    textParams = zipObjectToParams(params, true);
+                    if (!keys.includes(`${textParams}`)) {
+                        paramValueArrays[0].push(paramValueArrays[0].shift());
+                        return resolve(textParams);
+                    }
+                    array.push(array.shift());
+                }
+                array.push(array.shift());
+            }
+            return resolve(null);
         });
     });
 }
@@ -94,10 +91,54 @@ function prepareTestFromParams() {
             params: { i: [0] },
         },
         {
+            name: "High frame rate scenario",
+            params: {
+                i: localeNumberArray(20),
+                n: localeNumberArray(5, (i) => 2 * 4 ** i).reverse(),
+                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
+                p: ["proton", "electron"],
+                r: ["all_raw", "all_processed"],
+                t: [120, 24],
+            },
+        },
+        {
+            name: "Long new values visualization scenario",
+            params: {
+                i: localeNumberArray(20),
+                n: localeNumberArray(6, (i) => 8 ** i).reverse(),
+                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
+                p: ["proton", "electron"],
+                r: ["new_raw", "new_processed"],
+                t: [0, 0.5],
+            },
+        },
+        {
+            name: "All protons scenario",
+            params: {
+                i: localeNumberArray(20),
+                n: localeNumberArray(8, (i) => 4 ** i).reverse(),
+                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
+                p: ["proton"],
+                r: ["all_raw", "all_processed"],
+                t: [0, 0.5],
+            },
+        },
+        {
+            name: "All electrons scenario",
+            params: {
+                i: localeNumberArray(20),
+                n: localeNumberArray(11, (i) => 2 ** i).reverse(),
+                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
+                p: ["electron"],
+                r: ["all_raw", "all_processed"],
+                t: [0, 0.5],
+            },
+        },
+        {
             name: "Full testing scenario",
             params: {
-                i: localeNumberArray(5),
-                n: localeNumberArray(14, (i) => 2 ** i).reverse(),
+                i: localeNumberArray(1),
+                n: localeNumberArray(10, (i) => 2 ** i).reverse(),
                 b: localeNumberArray(5, (i) => 4 ** i).reverse(),
                 p: ["proton", "electron"],
                 r: [
@@ -107,73 +148,7 @@ function prepareTestFromParams() {
                     "all_processed",
                     "none",
                 ],
-                t: ["0", "0.5", "24", "120"],
-            },
-        },
-        {
-            name: "All protons scenario",
-            params: {
-                i: localeNumberArray(3),
-                n: localeNumberArray(8, (i) => 2 * 4 ** i).reverse(),
-                b: localeNumberArray(10, (i) => 2 ** i).reverse(),
-                p: ["proton"],
-                r: ["all_raw", "all_processed"],
-                t: ["0", "24", "120"],
-            },
-        },
-        {
-            name: "All protons scenario part 1",
-            params: {
-                i: localeNumberArray(20),
-                n: localeNumberArray(5, (i) => 8 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
-                p: ["proton"],
-                r: ["all_raw", "all_processed"],
-                t: ["0", "24", "120"],
-            },
-        },
-        {
-            name: "All protons scenario part 2",
-            params: {
-                i: localeNumberArray(20),
-                n: localeNumberArray(5, (i) => 4 * 8 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
-                p: ["proton"],
-                r: ["all_raw", "all_processed"],
-                t: ["0", "24", "120"],
-            },
-        },
-        {
-            name: "New protons scenario",
-            params: {
-                i: localeNumberArray(20),
-                n: localeNumberArray(8, (i) => 4 ** i).reverse(),
-                b: localeNumberArray(10, (i) => 2 ** i).reverse(),
-                p: ["proton"],
-                r: ["new_raw", "new_processed"],
-                t: ["0", "24", "120"],
-            },
-        },
-        {
-            name: "All electrons scenario",
-            params: {
-                i: localeNumberArray(20),
-                n: localeNumberArray(8, (i) => 2 ** i).reverse(),
-                b: localeNumberArray(10, (i) => 2 ** i).reverse(),
-                p: ["electron"],
-                r: ["all_raw", "all_processed"],
-                t: ["0", "24", "120"],
-            },
-        },
-        {
-            name: "New electrons scenario",
-            params: {
-                i: localeNumberArray(20),
-                n: localeNumberArray(8, (i) => 4 ** i).reverse(),
-                b: localeNumberArray(10, (i) => 2 ** i).reverse(),
-                p: ["electron"],
-                r: ["new_raw", "new_processed"],
-                t: ["0", "24", "120"],
+                t: [0, 0.5, 24, 120],
             },
         },
     ]);
