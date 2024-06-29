@@ -7,3 +7,4 @@ result_plot/logs
 result_plot/env
 result_plot/__pycache__
 result_plot/pyblish/__pycache__
+result_plot/pyblish/plots/__pycache__
