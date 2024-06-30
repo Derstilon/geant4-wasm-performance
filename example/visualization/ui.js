@@ -35,13 +35,58 @@ export function logLocalStorageInBody() {
                 });
         });
 }
+
+function createUploadButton() {
+    const paramsDiv = document.querySelector("#params");
+    if (!paramsDiv) return;
+    paramsDiv.innerHTML = "";
+    const button = document.createElement("button");
+    button.innerHTML = "Upload zip file with incomplete tests";
+    button.id = "downloadAll";
+    button.onclick = () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".zip";
+        input.onchange = (e) => {
+            // @ts-ignore
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // @ts-ignore
+                const zip = new JSZip();
+                // @ts-ignore
+                zip.loadAsync(e.target.result).then((zip) => {
+                    const promises = [];
+                    zip.forEach((path, file) => {
+                        promises.push(
+                            new Promise((resolve) => {
+                                file.async("string").then((content) => {
+                                    // @ts-ignore
+                                    ldb.set(path, content, resolve);
+                                });
+                            }),
+                        );
+                    });
+                    Promise.all(promises).then(() => {
+                        window.location.href = window.location.pathname;
+                    });
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        };
+        input.click();
+    };
+    paramsDiv.appendChild(button);
+}
+
 export function createDownloadableButtons() {
     const paramsDiv = document.querySelector("#params");
     if (!paramsDiv) return;
     paramsDiv.innerHTML = "";
     // @ts-ignore
     ldb.getAll((data) => {
-        if (data.length === 0) return;
+        if (data.length === 0) return createUploadButton();
         const sortedData = data.sort(({ k: keyA }, { k: keyB }) =>
             sortParams(
                 new URLSearchParams(`?${keyA}`),
