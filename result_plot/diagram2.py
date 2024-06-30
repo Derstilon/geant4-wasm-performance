@@ -99,7 +99,6 @@ def log_series_dict(obj, keyA, keyB, value):
     else:
         obj[keyA] = {keyB: [value]}
     
-
 def load_data_from_files(directory):
     config_comparison_data_over_problem_size = {}
     config_comparison_data_over_bin_size = {}

@@ -2,22 +2,27 @@ import { getFullParams } from "./params.js";
 // @ts-ignore
 navigator.sayswho = (function () {
     var ua = navigator.userAgent;
+    // @ts-ignore
+    var brands = navigator?.userAgentData?.brands;
     var tem;
     var M =
         ua.match(
             /(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i,
         ) || [];
+    if (brands && brands[2].brand === "Vivaldi") {
+        return `${brands[2].brand}_${brands[2].version}`;
+    }
     if (/trident/i.test(M[1])) {
         tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
-        return "IE " + (tem[1] || "");
+        return "IE_" + (tem[1] || "");
     }
     if (M[1] === "Chrome") {
         tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
-        if (tem != null) return tem.slice(1).join(" ").replace("OPR", "Opera");
+        if (tem != null) return tem.slice(1).join("_").replace("OPR", "Opera");
     }
     M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, "-?"];
     if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
-    return M.join(" ");
+    return M.join("_");
 })();
 const testResults = {};
 export function getTestResults() {

@@ -1,6 +1,6 @@
-from typing import Literal, TypedDict, List, Union
+from typing import Literal, TypedDict, List, Union, NamedTuple
 
-class TimeStampEntity(TypedDict):
+class TimeStampEntity(NamedTuple):
     timeStampLabel: str
     value: float
 
@@ -18,11 +18,11 @@ class MessageLogEntity(TypedDict):
     packageSize: int
 
 class Result(TypedDict):
-    numberOfSimulatedEvents: str  # Assuming "integer" means it's represented as a string
-    numberOfBins: str  # Assuming "integer" means it's represented as a string
+    numberOfSimulatedEvents: int  # Assuming "integer" means it's represented as a string
+    numberOfBins: int  # Assuming "integer" means it's represented as a string
     particleType: Union[Literal["electron"], Literal["proton"]]
     dataHandling: Union[Literal["new_raw"], Literal["all_raw"], Literal["new_processed"], Literal["all_processed"], Literal["none"]]
-    targetFrames: str  # Assuming "float" means it's represented as a string
+    targetFrames: float  # Assuming "float" means it's represented as a string
     browser: str
     timeStamps: List[TimeStampEntity]
     renderTime: int

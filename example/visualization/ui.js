@@ -56,7 +56,8 @@ export function createDownloadableButtons() {
             // @ts-ignore
             const zip = new JSZip();
             data.forEach(({ k: key, v: value }) => {
-                zip.file(`${key}.json`, value);
+                // @ts-ignore
+                zip.file(`${key}&${navigator.sayswho}.json`, value);
             });
             zip.generateAsync({ type: "blob" }).then((content) => {
                 const url = URL.createObjectURL(content);
@@ -76,7 +77,8 @@ export function createDownloadableButtons() {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `${key}.json`;
+                // @ts-ignore
+                a.download = `${key}&${navigator.sayswho}.json`;
                 a.click();
             };
             // append button to div
@@ -149,9 +151,11 @@ export function enableUI() {
     const resetBtn = document.querySelector("#resetBtn");
     if (resetBtn instanceof HTMLButtonElement)
         resetBtn.onclick = () => {
+            resetBtn.disabled = true;
             // @ts-ignore
-            ldb.clear();
-            window.location.href = window.location.pathname;
+            ldb.clear(() => {
+                window.location.href = window.location.pathname;
+            });
         };
     const runBtn = document.querySelector("#runCustomTestBtn");
     const iParamInput = document.querySelector("#iParam");

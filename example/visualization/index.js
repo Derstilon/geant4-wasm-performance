@@ -94,9 +94,9 @@ function prepareTestFromParams() {
             name: "High frame rate scenario",
             params: {
                 i: localeNumberArray(20),
-                n: localeNumberArray(5, (i) => 2 * 4 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
-                p: ["proton", "electron"],
+                n: localeNumberArray(5, (i) => 2 ** (2 * i + 1)).reverse(), // 2^9
+                b: localeNumberArray(5, (i) => 2 ** (2 * i)).reverse(), // 2^8
+                p: ["electron", "proton"],
                 r: ["all_raw", "all_processed"],
                 t: [120, 24],
             },
@@ -105,9 +105,9 @@ function prepareTestFromParams() {
             name: "Long new values visualization scenario",
             params: {
                 i: localeNumberArray(20),
-                n: localeNumberArray(6, (i) => 8 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
-                p: ["proton", "electron"],
+                n: localeNumberArray(6, (i) => 2 ** (3 * i)).reverse(), // 2^15
+                b: localeNumberArray(5, (i) => 2 ** (2 * i)).reverse(), // 2^8
+                p: ["electron", "proton"],
                 r: ["new_raw", "new_processed"],
                 t: [0, 0.5],
             },
@@ -116,8 +116,8 @@ function prepareTestFromParams() {
             name: "All protons scenario",
             params: {
                 i: localeNumberArray(20),
-                n: localeNumberArray(8, (i) => 4 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
+                n: localeNumberArray(8, (i) => 2 ** (2 * i)).reverse(), // 2^14
+                b: localeNumberArray(5, (i) => 2 ** (2 * i)).reverse(), // 2^8
                 p: ["proton"],
                 r: ["all_raw", "all_processed"],
                 t: [0, 0.5],
@@ -127,28 +127,33 @@ function prepareTestFromParams() {
             name: "All electrons scenario",
             params: {
                 i: localeNumberArray(20),
-                n: localeNumberArray(11, (i) => 2 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
+                n: localeNumberArray(11, (i) => 2 ** i).reverse(), // 2^10
+                b: localeNumberArray(5, (i) => 2 ** (2 * i)).reverse(), // 2^8
                 p: ["electron"],
                 r: ["all_raw", "all_processed"],
                 t: [0, 0.5],
             },
         },
         {
-            name: "Full testing scenario",
+            name: "Full rendering testing scenario",
             params: {
                 i: localeNumberArray(1),
-                n: localeNumberArray(10, (i) => 2 ** i).reverse(),
-                b: localeNumberArray(5, (i) => 4 ** i).reverse(),
-                p: ["proton", "electron"],
-                r: [
-                    "new_raw",
-                    "all_raw",
-                    "new_processed",
-                    "all_processed",
-                    "none",
-                ],
+                n: localeNumberArray(10, (i) => 2 ** i).reverse(), // 2^9
+                b: localeNumberArray(5, (i) => 2 ** (2 * i)).reverse(), // 2^8
+                p: ["electron", "proton"],
+                r: ["new_raw", "all_raw", "new_processed", "all_processed"],
                 t: [0, 0.5, 24, 120],
+            },
+        },
+        {
+            name: "Without rendering scenario",
+            params: {
+                i: localeNumberArray(10),
+                n: localeNumberArray(16, (i) => 2 ** i).reverse(),
+                b: localeNumberArray(5, (i) => 2 ** (2 * i)).reverse(),
+                p: ["electron", "proton"],
+                r: ["none"],
+                t: [0],
             },
         },
     ]);

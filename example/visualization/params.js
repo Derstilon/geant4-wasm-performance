@@ -1,5 +1,5 @@
 const _defaultTestParams = {
-    i: null,
+    i: -1,
     n: 128,
     b: 1,
     p: "proton",
@@ -9,24 +9,24 @@ const _defaultTestParams = {
 
 export function getFullParams(testParams = new URLSearchParams()) {
     const {
-        i: iteration,
-        n: numberOfSimulatedEvents,
-        b: numberOfBins,
+        i,
+        n,
+        b,
         p: particleType,
         r: dataHandling,
-        t: targetFrames,
+        t,
     } = {
         // fill in missing parameters with defaults
         ..._defaultTestParams,
         ...Object.fromEntries(Array.from(testParams.entries())),
     };
     return {
-        iteration,
-        numberOfSimulatedEvents,
-        numberOfBins,
+        iteration: parseInt(`${i}`),
+        numberOfSimulatedEvents: parseInt(`${n}`),
+        numberOfBins: parseInt(`${b}`),
         particleType,
         dataHandling,
-        targetFrames,
+        targetFrames: parseFloat(`${t}`),
     };
 }
 export function sortParams(A, B) {
