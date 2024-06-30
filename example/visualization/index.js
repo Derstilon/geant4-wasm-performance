@@ -59,22 +59,31 @@ function findNextTestParams(params, textParams, paramValueArrays) {
         if (paramValueArrays.length === 0) return resolve(null);
         // @ts-ignore
         return ldb.list((keys) => {
-            // find the first key that is not in the keys array
-            for (
-                let arrayIdx = 0;
-                arrayIdx < paramValueArrays.length;
-                arrayIdx++
+            // check every possible combination of parameters until a new one is found'
+            let currentCombination = 0;
+            const maxCombinations = paramValueArrays.reduce((acc, arr) => {
+                acc.push((acc.length ? acc[acc.length - 1] : 1) * arr.length);
+                return acc;
+            }, []);
+            console.log(maxCombinations, paramValueArrays);
+
+            while (
+                currentCombination < maxCombinations[maxCombinations.length - 1]
             ) {
-                const array = paramValueArrays[arrayIdx];
-                for (let i = 0; i < array.length; i++) {
-                    textParams = zipObjectToParams(params, true);
-                    if (!keys.includes(`${textParams}`)) {
-                        paramValueArrays[0].push(paramValueArrays[0].shift());
-                        return resolve(textParams);
-                    }
-                    array.push(array.shift());
+                textParams = zipObjectToParams(params, true);
+                let currentIdx = 0;
+                currentCombination++;
+                while (currentIdx < paramValueArrays.length) {
+                    paramValueArrays[currentIdx].push(
+                        paramValueArrays[currentIdx].shift(),
+                    );
+                    if (currentCombination % maxCombinations[currentIdx] !== 0)
+                        break;
+                    currentIdx++;
                 }
-                array.push(array.shift());
+                if (!keys.includes(`${textParams}`)) {
+                    return resolve(textParams);
+                }
             }
             return resolve(null);
         });
