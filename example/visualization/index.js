@@ -65,7 +65,6 @@ function findNextTestParams(params, textParams, paramValueArrays) {
                 acc.push((acc.length ? acc[acc.length - 1] : 1) * arr.length);
                 return acc;
             }, []);
-            console.log(maxCombinations, paramValueArrays);
 
             while (
                 currentCombination < maxCombinations[maxCombinations.length - 1]

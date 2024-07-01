@@ -6,7 +6,7 @@ import {
     isQueueEmpty,
     optimizeTrackData,
 } from "./data.js";
-import { increaseStoredNumber, storeLogs } from "./logger.js";
+import { getTestResults, increaseStoredNumber, storeLogs } from "./logger.js";
 import { getFullParams } from "./params.js";
 import { getSimulationStatus } from "./simulation.js";
 let canvas, gl, program, colorPalette, colorGenerator;
@@ -374,7 +374,12 @@ function visualizationStep(
             increaseStoredNumber("frameCount");
         }
     }
-    if (getSimulationStatus() === "finished" && isQueueEmpty())
+    if (
+        getSimulationStatus() === "finished" &&
+        isQueueEmpty() &&
+        getTestResults()["messageCount"] ===
+            getTestResults()["numberOfSimulatedEvents"]
+    )
         return endCallback();
     requestAnimationFrame((timeStamp) =>
         visualizationStep(
