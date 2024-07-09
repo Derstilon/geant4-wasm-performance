@@ -3,7 +3,7 @@ const particleOptions = {
     electron: ["e+", "6 MeV"],
 };
 const encoder = new TextEncoder();
-let simulationStatus = "pending";
+let simulationStatus = 0; // 0 - pending, 1 - initializing, 2 - running, 3 - finished
 let timeOriginDiff = 0;
 import { enqueueData } from "./data.js";
 import { increaseStoredNumber, storeLogs } from "./logger.js";
@@ -64,7 +64,7 @@ export function initializeWebWorker(testParams = new URLSearchParams()) {
                     timeOriginDiff = messagePayload - performance.timeOrigin;
                     break;
                 case "exit":
-                    simulationStatus = "finished";
+                    simulationStatus = 3; // 0 - pending, 1 - initializing, 2 - running, 3 - finished
                     const { endTime, startTime } = messagePayload;
                     storeLogs("timeStamps", [
                         "simulationStart",
@@ -81,7 +81,7 @@ export function initializeWebWorker(testParams = new URLSearchParams()) {
                 case "event":
                     if (messagePayload !== "onRuntimeInitialized") break;
                     storeLogs("timeStamps", ["workerStart", performance.now()]);
-                    simulationStatus = "running";
+                    simulationStatus = 1; // 0 - pending, 1 - initializing, 2 - running, 3 - finished
                     geant4Worker.postMessage({
                         type: "run",
                         data: inputFile,
@@ -89,6 +89,7 @@ export function initializeWebWorker(testParams = new URLSearchParams()) {
                     break;
                 case "render":
                     if (dataHandling === "none") break;
+                    simulationStatus = 2; // 0 - pending, 1 - initializing, 2 - running, 3 - finished
                     const packageSize = encoder.encode(
                         JSON.stringify(messagePayload),
                     ).length;
@@ -111,6 +112,16 @@ export function initializeWebWorker(testParams = new URLSearchParams()) {
         geant4Worker.onmessage = messageHandler;
     });
 }
-export function getSimulationStatus() {
-    return simulationStatus;
+// 0 - pending, 1 - initializing, 2 - running, 3 - finished
+export function isSimulationFinished() {
+    return simulationStatus === 3;
+}
+export function isSimulationRunning() {
+    return simulationStatus === 2;
+}
+export function isSimulationInitializing() {
+    return simulationStatus === 1;
+}
+export function isSimulationPending() {
+    return simulationStatus === 0;
 }

@@ -8,7 +8,7 @@ import {
 } from "./data.js";
 import { getTestResults, increaseStoredNumber, storeLogs } from "./logger.js";
 import { getFullParams } from "./params.js";
-import { getSimulationStatus } from "./simulation.js";
+import { isSimulationFinished, isSimulationRunning } from "./simulation.js";
 let canvas, gl, program, colorPalette, colorGenerator;
 const MINIMAL_DISTANCE = 0.005;
 const ROTATION_SPEED = -0.1;
@@ -339,7 +339,7 @@ function visualizationStep(
     targetFrames,
     endCallback,
 ) {
-    if (getSimulationStatus() !== "pending") {
+    if (isSimulationRunning() || isSimulationFinished()) {
         const handleStart = performance.now();
         // Use targetFrames (per second), prevTimeStamp and currentTimeStamp to assume max time for handling
 
@@ -375,7 +375,7 @@ function visualizationStep(
         }
     }
     if (
-        getSimulationStatus() === "finished" &&
+        isSimulationFinished() &&
         isQueueEmpty() &&
         getTestResults()["messageCount"] ===
             getTestResults()["numberOfSimulatedEvents"]
@@ -403,12 +403,18 @@ export function startVisualization(testParams = new URLSearchParams()) {
                 initializeColorPalette();
                 resizer();
                 window.addEventListener("resize", resizer);
-                console.log("Visualization started");
                 const handlingConfig = dataHandling.split("_");
                 const shouldClear = handlingConfig[0] === "all";
-                const shouldOptimize = handlingConfig[1] === "optimized";
+                const shouldOptimize = handlingConfig[1] !== "raw";
                 if (handlingConfig[0] === "none") return resolve(true);
-                requestAnimationFrame((timeStamp) =>
+                console.log("Visualization started");
+                requestAnimationFrame((timeStamp) => {
+                    [
+                        "handleTime",
+                        "optimizeTime",
+                        "renderTime",
+                        "frameCount",
+                    ].forEach((key) => increaseStoredNumber(key, 0));
                     visualizationStep(
                         null,
                         timeStamp,
@@ -416,8 +422,8 @@ export function startVisualization(testParams = new URLSearchParams()) {
                         shouldOptimize,
                         targetFrames,
                         resolve,
-                    ),
-                );
+                    );
+                });
             },
         });
     });

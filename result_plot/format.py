@@ -21,14 +21,15 @@ class Result(TypedDict):
     numberOfSimulatedEvents: int  # Assuming "integer" means it's represented as a string
     numberOfBins: int  # Assuming "integer" means it's represented as a string
     particleType: Union[Literal["electron"], Literal["proton"]]
-    dataHandling: Union[Literal["new_raw"], Literal["all_raw"], Literal["new_processed"], Literal["all_processed"], Literal["none"]]
+    dataHandling: Union[Literal["new_raw"], Literal["all_raw"], Literal["new_optimized"], Literal["all_optimized"], Literal["none"]]
     targetFrames: float  # Assuming "float" means it's represented as a string
     browser: str
     timeStamps: List[TimeStampEntity]
+    stepLogs: List[StepLogEntity]
+    messageLogs: List[MessageLogEntity]
     renderTime: int
     frameCount: int
-    stepLogs: List[StepLogEntity]
     handleTime: int
+    optimizeTime: int
     messageCount: int
     dataSize: int
-    messageLogs: List[MessageLogEntity]

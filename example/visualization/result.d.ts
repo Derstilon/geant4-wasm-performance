@@ -5,8 +5,8 @@ type Result = {
     dataHandling:
         | "new_raw"
         | "all_raw"
-        | "new_processed"
-        | "all_processed"
+        | "new_optimized"
+        | "all_optimized"
         | "none";
     targetFrames: string; // "float"
     browser: string; // "browserName browserVersion"

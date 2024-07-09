@@ -12,6 +12,28 @@ navigator.sayswho = (function () {
     if (brands && brands[2].brand === "Vivaldi") {
         return `${brands[2].brand}_${brands[2].version}`;
     }
+    if (brands && brands[1].brand === "Microsoft Edge") {
+        return `Edge_${brands[1].version}`;
+    }
+    if (brands && brands[0].brand === "Opera") {
+        return `Opera_${brands[0].version}`;
+    }
+    if (ua.indexOf("Edg") > -1) {
+        return `Edge_${
+            window.navigator.userAgent
+                .split("Edg/")[1]
+                .split(" ")[0]
+                .split(".")[0]
+        }`;
+    }
+    if (ua.indexOf("Mozilla") > -1) {
+        return `Firefox_${
+            window.navigator.userAgent
+                .split("Mozilla/")[1]
+                .split(" ")[0]
+                .split(".")[0]
+        }`;
+    }
     if (/trident/i.test(M[1])) {
         tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
         return "IE_" + (tem[1] || "");
