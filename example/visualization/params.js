@@ -29,6 +29,21 @@ export function getFullParams(testParams = new URLSearchParams()) {
         targetFrames: parseFloat(`${t}`),
     };
 }
+export function fullParamsToURLKey(fullParams) {
+    const keyParams = {
+        i: fullParams.iteration,
+        n: fullParams.numberOfSimulatedEvents,
+        b: fullParams.numberOfBins,
+        p: fullParams.particleType,
+        r: fullParams.dataHandling,
+        t: fullParams.targetFrames,
+    };
+    const newParams = new URLSearchParams();
+    Object.entries(keyParams).forEach(([key, value]) =>
+        newParams.set(key, value),
+    );
+    return newParams;
+}
 export function sortParams(A, B) {
     const {
         i: a0,

@@ -1,5 +1,11 @@
 import { zipObjectToParams } from "./index.js";
-import { getHumanReadableParams, sortParams } from "./params.js";
+import { saveResultsToLocalStorage } from "./logger.js";
+import {
+    fullParamsToURLKey,
+    getFullParams,
+    getHumanReadableParams,
+    sortParams,
+} from "./params.js";
 
 const millisecondsInSecond = 1000;
 const millisecondsInMinute = millisecondsInSecond * 60;
@@ -57,17 +63,21 @@ function createUploadButton() {
                 const zip = new JSZip();
                 // @ts-ignore
                 zip.loadAsync(e.target.result).then((zip) => {
-                    const promises = [];
-                    zip.forEach((path, file) => {
-                        promises.push(
+                    console.log(zip);
+                    const promises = Object.values(zip.files).map(
+                        (file) =>
                             new Promise((resolve) => {
                                 file.async("string").then((content) => {
-                                    // @ts-ignore
-                                    ldb.set(path, content, resolve);
+                                    const parsed = JSON.parse(content);
+                                    if (!parsed) return resolve(true);
+                                    saveResultsToLocalStorage(
+                                        JSON.parse(content),
+                                        content,
+                                        resolve,
+                                    );
                                 });
                             }),
-                        );
-                    });
+                    );
                     Promise.all(promises).then(() => {
                         window.location.href = window.location.pathname;
                     });

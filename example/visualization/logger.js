@@ -1,4 +1,4 @@
-import { getFullParams } from "./params.js";
+import { fullParamsToURLKey, getFullParams } from "./params.js";
 // @ts-ignore
 navigator.sayswho = (function () {
     var ua = navigator.userAgent;
@@ -66,7 +66,12 @@ export function storeLogs(key, data) {
     if (!testResults[key]) testResults[key] = [];
     testResults[key].push(data);
 }
-export function saveResultsToLocalStorage(key) {
+export function saveResultsToLocalStorage(
+    data = testResults,
+    stringData = JSON.stringify(testResults),
+    callback = (resolve) => {},
+) {
+    const key = `${fullParamsToURLKey(data)}`;
     // @ts-ignore
-    ldb.set(key, JSON.stringify(testResults));
+    ldb.set(key, stringData, callback);
 }

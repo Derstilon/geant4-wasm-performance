@@ -12,6 +12,7 @@ import {
     generateTestScenarios,
     setCurrentTestTitle,
 } from "./ui.js";
+import { fullParamsToURLKey, getFullParams } from "./params.js";
 
 export function zipObjectFromParams() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -54,7 +55,7 @@ function initializeTestRun(urlParams) {
     return Promise.all([initPromise, visualizationPromise]);
 }
 
-function findNextTestParams(params, textParams, paramValueArrays) {
+function findNextTestParams(params, testParamsCandidate, paramValueArrays) {
     return new Promise((resolve) => {
         if (paramValueArrays.length === 0) return resolve(null);
         // @ts-ignore
@@ -69,7 +70,10 @@ function findNextTestParams(params, textParams, paramValueArrays) {
             while (
                 currentCombination < maxCombinations[maxCombinations.length - 1]
             ) {
-                textParams = zipObjectToParams(params, true);
+                testParamsCandidate = zipObjectToParams(params, true);
+                const candidateKey = fullParamsToURLKey(
+                    getFullParams(testParamsCandidate),
+                );
                 let currentIdx = 0;
                 currentCombination++;
                 while (currentIdx < paramValueArrays.length) {
@@ -80,8 +84,8 @@ function findNextTestParams(params, textParams, paramValueArrays) {
                         break;
                     currentIdx++;
                 }
-                if (!keys.includes(`${textParams}`)) {
-                    return resolve(textParams);
+                if (!keys.includes(`${candidateKey}`)) {
+                    return resolve(testParamsCandidate);
                 }
             }
             return resolve(null);
@@ -180,7 +184,7 @@ function prepareTestFromParams() {
             setCurrentTestTitle(`${testParams}`.replaceAll("&", " "));
             initializeTestRun(testParams).then(() => {
                 storeLogs("timeStamps", ["testEnd", performance.now()]);
-                saveResultsToLocalStorage(`${testParams}`);
+                saveResultsToLocalStorage();
                 refreshForNextTest(zipObjectToParams(params));
             });
         },
