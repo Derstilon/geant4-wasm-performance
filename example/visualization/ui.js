@@ -59,6 +59,7 @@ function createUploadButton() {
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
+                button.disabled = true;
                 // @ts-ignore
                 const zip = new JSZip();
                 // @ts-ignore
@@ -69,9 +70,11 @@ function createUploadButton() {
                             new Promise((resolve) => {
                                 file.async("string").then((content) => {
                                     const parsed = JSON.parse(content);
+                                    // parsed.browser = navigator.sayswho;
+                                    // content = JSON.stringify(parsed);
                                     if (!parsed) return resolve(true);
                                     saveResultsToLocalStorage(
-                                        JSON.parse(content),
+                                        parsed,
                                         content,
                                         resolve,
                                     );

@@ -103,7 +103,7 @@ export function assignColor(particle) {
 function initializeColorPalette() {
     const mainParticles = [
         "proton",
-        "e+",
+        "O-16",
         "gamma",
         "e-",
         "neutron",

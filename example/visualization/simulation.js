@@ -1,6 +1,6 @@
 const particleOptions = {
     proton: ["proton", "60 MeV"],
-    electron: ["e+", "6 MeV"],
+    electron: ["e-", "6 MeV"],
 };
 const encoder = new TextEncoder();
 let simulationStatus = 0; // 0 - pending, 1 - initializing, 2 - running, 3 - finished

@@ -87,7 +87,7 @@ function isVisible(trackPoints) {
     return minimalDistance < trackDistance;
 }
 function getOptimizedTrackData(trackPoints) {
-    if (trackPoints.length < 9) return false; // Less than 3 points (9 coordinates) can't be unoptimized
+    if (trackPoints.length < 9) return false; // Less than 3 points (9 coordinates) can't have redundant points
     const newPoints = trackPoints.slice(0, 3);
     const minimalAngle = getMinimalDistance();
     for (let i = 3; i < trackPoints.length - 6; i += 3) {
