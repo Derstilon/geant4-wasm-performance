@@ -1,0 +1,24 @@
+/process/em/verbose 0
+/run/verbose 0
+/control/verbose 0
+
+/score/create/boxMesh boxMesh
+/score/mesh/boxSize 50. 50. 50. mm
+/score/mesh/nBin 1 1 1
+/score/quantity/energyDeposit eDep
+
+/score/close
+
+/run/initialize
+
+/process/em/verbose 0
+/run/verbose 0
+/control/verbose 0
+
+
+/gps/particle proton
+/gps/energy 60 MeV
+/gps/direction 0. 0. 1.
+/gps/position 0. 0. -2 cm
+
+/run/beamOn 1

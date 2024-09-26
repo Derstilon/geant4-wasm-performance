@@ -1,0 +1,1 @@
+-I"/memfs/10046756/geant4-wasm-performance/example/B1/include" -isystem "/memfs/10046756/geant4.10.04.p03-install-emscripten/include/Geant4"
